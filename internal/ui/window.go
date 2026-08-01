@@ -114,7 +114,7 @@ func (viewer *Viewer) build() {
 	viewer.inspector = container.NewVBox()
 	inspectorScroll := container.NewVScroll(viewer.inspector)
 	left := container.NewBorder(widget.NewLabelWithStyle("YAML hierarchy", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, container.NewVScroll(viewer.tree))
-	right := container.NewBorder(widget.NewLabelWithStyle("Selected node details", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, inspectorScroll)
+	right := container.NewBorder(widget.NewLabelWithStyle("Node inspector", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, inspectorScroll)
 	split := container.NewHSplit(left, right)
 	split.SetOffset(0.42)
 
@@ -405,73 +405,6 @@ func (viewer *Viewer) selectTreeItem(id string) {
 
 func (viewer *Viewer) selectedNode() *yamlmodel.Node {
 	return viewer.state.Selected
-}
-
-func (viewer *Viewer) updateInspector(node *yamlmodel.Node) {
-	viewer.inspector.RemoveAll()
-	if viewer.lastError != nil {
-		viewer.inspector.Add(widget.NewLabelWithStyle("Load error", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-		errorText := widget.NewMultiLineEntry()
-		errorText.SetText(viewer.lastError.Error())
-		errorText.Disable()
-		viewer.inspector.Add(errorText)
-		viewer.inspector.Add(widget.NewButton("Copy error", func() { viewer.copy(viewer.lastError.Error()) }))
-		viewer.inspector.Add(widget.NewSeparator())
-	}
-	if node == nil {
-		viewer.inspector.Add(widget.NewLabel("Select a node to inspect its metadata and complete value."))
-		viewer.inspector.Refresh()
-		return
-	}
-	viewer.inspector.Add(widget.NewLabelWithStyle(display.NodeDisplayName(node), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-	viewer.inspector.Add(detailRow("Display name", display.NodeDisplayName(node)))
-	viewer.inspector.Add(detailRow("Raw key", valueOrDash(node.Key)))
-	viewer.inspector.Add(detailRow("Path", node.Path))
-	viewer.inspector.Add(detailRow("Type", string(node.Kind)))
-	viewer.inspector.Add(detailRow("Tag", valueOrDash(node.Tag)))
-	viewer.inspector.Add(detailRow("Scalar style", valueOrDash(node.Style)))
-	viewer.inspector.Add(detailRow("Anchor", valueOrDash(node.Anchor)))
-	viewer.inspector.Add(detailRow("Alias", valueOrDash(node.Alias)))
-	viewer.inspector.Add(detailRow("Source", fmt.Sprintf("line %d, column %d", node.Line, node.Column)))
-	viewer.inspector.Add(detailRow("Children", fmt.Sprintf("%d", len(node.Children))))
-	if node.Duplicate {
-		viewer.inspector.Add(widget.NewLabel("Duplicate mapping key: retained as a separate node"))
-	}
-	viewer.inspector.Add(widget.NewLabelWithStyle("Complete value", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-	value := node.Value
-	if node.Kind == yamlmodel.MappingNode || node.Kind == yamlmodel.SequenceNode {
-		value = node.YAML
-	}
-	if node.Kind == yamlmodel.AliasNode {
-		value = "*" + node.Alias
-	}
-	if value == "" && node.YAML != "" {
-		value = node.YAML
-	}
-	if value == "" {
-		value = "null / empty"
-	}
-	valueEntry := widget.NewMultiLineEntry()
-	valueEntry.SetText(value)
-	valueEntry.Disable()
-	viewer.inspector.Add(valueEntry)
-	viewer.inspector.Add(widget.NewButton("Copy node value", func() { viewer.copy(value) }))
-	viewer.inspector.Add(widget.NewSeparator())
-	viewer.inspector.Add(detailRow("Head comment", valueOrDash(node.Comments.Head)))
-	viewer.inspector.Add(detailRow("Line comment", valueOrDash(node.Comments.Line)))
-	viewer.inspector.Add(detailRow("Foot comment", valueOrDash(node.Comments.Foot)))
-	viewer.inspector.Add(container.NewHBox(
-		widget.NewButton("Copy raw key", func() { viewer.copy(node.Key) }),
-		widget.NewButton("Copy path", func() { viewer.copy(node.Path) }),
-	))
-	viewer.inspector.Refresh()
-}
-
-func detailRow(name, value string) *fyne.Container {
-	return container.NewVBox(
-		widget.NewLabelWithStyle(name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel(value),
-	)
 }
 
 func valueOrDash(value string) string {
