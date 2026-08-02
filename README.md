@@ -8,13 +8,24 @@ and recent files.
 Run it with:
 
 ```bash
-go run ./cmd/yamlviewer path/to/file.yaml
+go run . path/to/file.yaml
 ```
+
+To start with an empty viewer and choose a file from the UI:
+
+```bash
+go run .
+```
+
+The last successfully opened file is remembered in
+`~/.config/yaml-viewer/config.yaml` and is offered in the Recent files menu on
+the next launch. It is not opened automatically when no command-line path is
+provided.
 
 Verify the project with:
 
 ```bash
 go test ./...
 go vet ./...
-go build ./cmd/yamlviewer
+go build .·
 ```

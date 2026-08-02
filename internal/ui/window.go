@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"yamlviewer/internal/appstate"
+	appconfig "yamlviewer/internal/config"
 	"yamlviewer/internal/display"
 	"yamlviewer/internal/fileio"
 	"yamlviewer/internal/search"
@@ -37,6 +39,7 @@ type Viewer struct {
 	window fyne.Window
 	state  *appstate.State
 	recent *fileio.RecentFiles
+	config appconfig.Config
 
 	current *fileio.LoadedFile
 	items   map[string]treeItem
@@ -57,12 +60,20 @@ type Viewer struct {
 
 // New creates the application window and its widgets.
 func New(application fyne.App) *Viewer {
+	storedConfig, err := appconfig.Load()
+	if err != nil {
+		log.Printf("[config] load failed: %v", err)
+	}
 	viewer := &Viewer{
 		app:     application,
 		state:   appstate.New(),
 		recent:  fileio.NewRecentFiles(10),
+		config:  storedConfig,
 		items:   make(map[string]treeItem),
 		visible: make(map[string]bool),
+	}
+	if storedConfig.LastOpenedFile != "" {
+		viewer.recent.Add(storedConfig.LastOpenedFile)
 	}
 	viewer.build()
 	return viewer
@@ -86,6 +97,7 @@ func (viewer *Viewer) build() {
 		}
 	})
 	viewer.recentSelect.PlaceHolder = "Recent files"
+	viewer.recentSelect.SetOptions(viewer.recent.List())
 	clearButton := widget.NewButton("Clear", func() { viewer.searchEntry.SetText("") })
 	toolbar := container.NewBorder(nil, nil, container.NewHBox(openButton, reloadButton), clearButton,
 		container.NewBorder(nil, nil, nil, viewer.recentSelect, viewer.searchEntry))
@@ -123,6 +135,7 @@ func (viewer *Viewer) build() {
 	viewer.errorLabel.Wrapping = fyne.TextWrapWord
 	footer := container.NewBorder(nil, nil, viewer.errorLabel, nil, viewer.status)
 	viewer.window.SetContent(container.NewBorder(toolbar, footer, nil, nil, split))
+	viewer.window.SetOnClosed(viewer.saveConfig)
 	viewer.window.SetOnDropped(func(_ fyne.Position, uris []fyne.URI) {
 		for _, uri := range uris {
 			if uri.Scheme() == "file" {
@@ -208,6 +221,7 @@ func (viewer *Viewer) openPath(path string) {
 			}
 			viewer.current = loaded
 			viewer.lastError = nil
+			viewer.config.LastOpenedFile = loaded.Path
 			viewer.recent.Add(loaded.Path)
 			viewer.recentSelect.SetOptions(viewer.recent.List())
 			viewer.updateInspector(nil)
@@ -215,6 +229,15 @@ func (viewer *Viewer) openPath(path string) {
 			viewer.scheduleSearchNow()
 		})
 	}()
+}
+
+func (viewer *Viewer) saveConfig() {
+	if viewer.current != nil {
+		viewer.config.LastOpenedFile = viewer.current.Path
+	}
+	if err := appconfig.Save(viewer.config); err != nil {
+		log.Printf("[config] save failed: %v", err)
+	}
 }
 
 func (viewer *Viewer) showError(err error) {
