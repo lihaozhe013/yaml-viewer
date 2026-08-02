@@ -214,5 +214,10 @@ it into place. Preserve this behavior for all config writes.
 - Commit messages must follow Conventional Commits, such as `feat:`, `fix:`,
   `refactor:`, `test:`, `docs:`, or `chore:`.
 - Use `rg` for repository searches.
+- Keep Makefile build targets portable across Windows, macOS, and Linux. Do not
+  add `-o` output arguments or hardcode platform-specific executable names such
+  as `.exe`; let `go build` select the native output name.
+- Apply platform-specific linker flags conditionally. The Windows release GUI
+  subsystem flag must not be passed to macOS or Linux builds.
 - Do not commit generated binaries or local user config files.
 - Preserve atomic writes and avoid destructive filesystem or Git commands.

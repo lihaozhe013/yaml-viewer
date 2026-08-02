@@ -1,17 +1,29 @@
 GO_FILES := $(shell rg --files -g '*.go')
+BUILD_GOOS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
+RELEASE_LDFLAGS := -s -w
 
-.PHONY: run build clean format
+ifeq ($(BUILD_GOOS),windows)
+RELEASE_LDFLAGS := -H=windowsgui -s -w
+endif
+
+.PHONY: run build debug release clean format
 
 default: run
 
 run:
-	go run .
+	go run -tags debug .
 
 build:
-	go build -o yamlviewer .
+	go build -tags debug .
+
+debug:
+	go build -tags debug .
+
+release:
+	go build -tags release -trimpath -ldflags "$(RELEASE_LDFLAGS)" .
 
 clean:
-	rm -f yamlviewer yamlviewer.exe
+	rm -f yamlviewer yamlviewer.exe yamlviewer-debug.exe
 
 format:
 	gofmt -w $(GO_FILES)

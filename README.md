@@ -52,5 +52,20 @@ Verify the project with:
 ```bash
 go test ./...
 go vet ./...
-go build .
+go build -tags debug .
+go build -tags release -trimpath -ldflags "-s -w" .
 ```
+
+For development, use `make debug` or `make run`. Debug builds keep diagnostic
+logs enabled and use the normal Windows console subsystem. Release builds use
+the Windows GUI subsystem, so they do not open a terminal window, and disable
+standard-library logging entirely. The equivalent direct commands are:
+
+```powershell
+go build -tags debug .
+go build -tags release -trimpath -ldflags "-H=windowsgui -s -w" .
+```
+
+The Makefile lets Go choose the native output name for the current platform.
+On Windows, its release target adds the GUI subsystem flag; on macOS and Linux
+it uses the portable release linker flags.
