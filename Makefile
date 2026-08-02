@@ -22,6 +22,11 @@ release:
 
 clean:
 	rm -f yamlviewer yamlviewer.exe
+	rm -rf dist
 
 format:
 	gofmt -w $(GO_FILES)
+
+build-mac:
+	go build -o yamlviewer .
+	uv run scripts/build_macos.py

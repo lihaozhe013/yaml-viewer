@@ -72,3 +72,13 @@ go build -tags release -trimpath -ldflags "-H=windowsgui -s -w" .
 The Makefile lets Go choose the native output name for the current platform.
 On Windows, its release target adds the GUI subsystem flag; on macOS and Linux
 it uses the portable release linker flags.
+
+To create a macOS application bundle and disk image, run:
+
+```bash
+python3 scripts/build_macos.py
+```
+
+The artifacts are written to `dist/macos/`. The disk image includes
+`remove-quarantine.command`, which removes the macOS quarantine attribute from
+the application after explicitly requesting an administrator password.
