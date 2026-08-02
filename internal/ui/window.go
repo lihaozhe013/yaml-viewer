@@ -11,7 +11,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
@@ -19,6 +18,7 @@ import (
 	appconfig "yamlviewer/internal/config"
 	"yamlviewer/internal/display"
 	"yamlviewer/internal/fileio"
+	"yamlviewer/internal/filepicker"
 	"yamlviewer/internal/search"
 	"yamlviewer/internal/yamlmodel"
 )
@@ -39,6 +39,7 @@ type Viewer struct {
 	window fyne.Window
 	state  *appstate.State
 	recent *fileio.RecentFiles
+	picker filepicker.Picker
 	config appconfig.Config
 
 	current *fileio.LoadedFile
@@ -68,6 +69,7 @@ func New(application fyne.App) *Viewer {
 		app:     application,
 		state:   appstate.New(),
 		recent:  fileio.NewRecentFiles(10),
+		picker:  filepicker.NewNative(),
 		config:  storedConfig,
 		items:   make(map[string]treeItem),
 		visible: make(map[string]bool),
@@ -179,20 +181,31 @@ func (viewer *Viewer) OpenPath(path string) {
 }
 
 func (viewer *Viewer) openDialog() {
-	dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-		if err != nil {
-			viewer.showError(err)
-			return
-		}
-		if reader == nil {
-			return
-		}
-		path := reader.URI().Path()
-		_ = reader.Close()
-		if path != "" {
-			viewer.openPath(path)
-		}
-	}, viewer.window)
+	startDir := viewer.startDirectory()
+	go func() {
+		path, err := viewer.picker.Open(startDir)
+		fyne.Do(func() {
+			if err != nil {
+				if !filepicker.IsCancelled(err) {
+					viewer.showError(err)
+				}
+				return
+			}
+			if path != "" {
+				viewer.openPath(path)
+			}
+		})
+	}()
+}
+
+func (viewer *Viewer) startDirectory() string {
+	if viewer.current != nil {
+		return filepath.Dir(viewer.current.Path)
+	}
+	if viewer.config.LastOpenedFile != "" {
+		return filepath.Dir(viewer.config.LastOpenedFile)
+	}
+	return ""
 }
 
 func (viewer *Viewer) reload() {

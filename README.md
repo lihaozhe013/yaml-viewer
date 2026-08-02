@@ -22,10 +22,14 @@ The last successfully opened file is remembered in
 the next launch. It is not opened automatically when no command-line path is
 provided.
 
+The Open action uses the host operating system's native file picker: Finder on
+macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
+systems. Linux systems need the GTK 3 runtime libraries installed.
+
 Verify the project with:
 
 ```bash
 go test ./...
 go vet ./...
-go build .·
+go build .
 ```
