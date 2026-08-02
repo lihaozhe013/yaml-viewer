@@ -16,8 +16,8 @@ const (
 	configFileName  = "config.yaml"
 )
 
-// Config is intentionally small and extensible. The path is only a recent
-// file hint; startup does not automatically open it when no CLI path is given.
+// Config is intentionally small and extensible. The path is restored on the
+// next launch when no command-line path is provided.
 type Config struct {
 	LastOpenedFile string `yaml:"last_opened_file,omitempty"`
 }

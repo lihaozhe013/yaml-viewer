@@ -18,9 +18,9 @@ go run .
 ```
 
 The last successfully opened file is remembered in
-`~/.config/yaml-viewer/config.yaml` and is offered in the Recent files menu on
-the next launch. It is not opened automatically when no command-line path is
-provided.
+`~/.config/yaml-viewer/config.yaml` and automatically reopened on the next
+launch when no command-line path is provided. A command-line path takes
+precedence; on the first launch, the viewer starts empty.
 
 The Open action uses the host operating system's native file picker: Finder on
 macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like

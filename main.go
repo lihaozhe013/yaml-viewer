@@ -13,6 +13,8 @@ func main() {
 	viewer := ui.New(application)
 	if len(os.Args) > 1 {
 		viewer.OpenPath(os.Args[1])
+	} else {
+		viewer.OpenLastPath()
 	}
 	viewer.ShowAndRun()
 }

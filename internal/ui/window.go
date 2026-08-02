@@ -180,6 +180,15 @@ func (viewer *Viewer) OpenPath(path string) {
 	viewer.openPath(path)
 }
 
+// OpenLastPath restores the file saved in the application configuration. It
+// is intentionally separate from New so an explicit command-line path can
+// take precedence during startup.
+func (viewer *Viewer) OpenLastPath() {
+	if viewer.config.LastOpenedFile != "" {
+		viewer.openPath(viewer.config.LastOpenedFile)
+	}
+}
+
 func (viewer *Viewer) openDialog() {
 	startDir := viewer.startDirectory()
 	go func() {
