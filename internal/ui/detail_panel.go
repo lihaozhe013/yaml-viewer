@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -63,7 +64,7 @@ func emptyDetailState(palette detailPalette) fyne.CanvasObject {
 	title.SizeName = theme.SizeNameSubHeadingText
 	description := widget.NewLabel("Choose a YAML node from the hierarchy to inspect its details.")
 	description.Wrapping = fyne.TextWrapWord
-	return detailCard(palette, sectionIdentity, "Selected node", "Inspector", container.NewVBox(title, description))
+	return detailCard(palette, sectionIdentity, "", "", container.NewVBox(title, description))
 }
 
 func detailHeader(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) fyne.CanvasObject {
@@ -87,7 +88,7 @@ func detailHeader(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) f
 		widget.NewButton("Copy path", func() { viewer.copy(node.Path) }),
 	)
 	content := container.NewBorder(nil, actions, nil, nil, container.NewVBox(titleRow, path))
-	return detailCard(palette, sectionIdentity, "Selected node", "Human-readable label and source identity", content)
+	return detailCard(palette, sectionIdentity, "", "", content)
 }
 
 func identityContent(node *yamlmodel.Node) fyne.CanvasObject {
@@ -114,16 +115,20 @@ func valueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) f
 	gridBackground := canvas.NewRectangle(palette.codeBackground)
 	gridBackground.CornerRadius = 6
 	gridBackground.SetMinSize(fyne.NewSize(1, 72))
-	code := container.NewStack(gridBackground, container.NewScroll(grid))
-	actions := []fyne.CanvasObject{widget.NewButton("Copy value", func() { viewer.copy(value) })}
+	var code fyne.CanvasObject = container.NewStack(gridBackground, container.NewScroll(grid))
 	if node.Kind == yamlmodel.ScalarNode {
-		actions = append(actions, widget.NewButton("Edit value", viewer.beginEditValue))
+		code = newTappableValue(code, viewer.beginEditValue)
 	}
-	return container.NewVBox(code, container.NewHBox(actions...))
+	return container.NewVBox(code, widget.NewButton("Copy value", func() { viewer.copy(value) }))
 }
 
 func editableValueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) fyne.CanvasObject {
-	entry := widget.NewMultiLineEntry()
+	entry := newFocusCancelEntry(nil)
+	entry.onFocusLost = func() {
+		if viewer.valueEditor == entry {
+			viewer.cancelEditValue(node)
+		}
+	}
 	entry.SetText(valueForEdit(node))
 	entry.Wrapping = fyne.TextWrapWord
 	entry.SetMinRowsVisible(4)
@@ -141,21 +146,54 @@ func editableValueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPa
 	}
 	cancel := func() { viewer.cancelEditValue(node) }
 	entry.OnSubmitted = func(string) { apply() }
-	applyButton := widget.NewButton("Apply", apply)
-	applyButton.Importance = widget.HighImportance
+	preserveFocusLoss := entry.preserveNextFocusLoss
+	applyButton := newEditorActionButton("Apply", preserveFocusLoss, apply)
+	applyButton.button.Importance = widget.HighImportance
 
 	return container.NewVBox(
 		widget.NewLabel("Enter one YAML scalar literal. Use quotes for an explicit string or null for a null value."),
 		entry,
 		validation,
 		container.NewHBox(
-			widget.NewButton("Cancel", cancel),
+			newEditorActionButton("Cancel", preserveFocusLoss, cancel),
 			applyButton,
-			widget.NewButton("Copy value", func() { viewer.copy(entry.Text) }),
+			newEditorActionButton("Copy value", preserveFocusLoss, func() { viewer.copy(entry.Text) }),
 		),
 		readOnlyText(valueForDisplay(node), palette, false),
 	)
 }
+
+type tappableValue struct {
+	widget.BaseWidget
+	content  fyne.CanvasObject
+	onTapped func()
+}
+
+func newTappableValue(content fyne.CanvasObject, onTapped func()) *tappableValue {
+	value := &tappableValue{content: content, onTapped: onTapped}
+	value.ExtendBaseWidget(value)
+	return value
+}
+
+func (value *tappableValue) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(value.content)
+}
+
+func (value *tappableValue) Tapped(*fyne.PointEvent) {
+	if value.onTapped != nil {
+		value.onTapped()
+	}
+}
+
+func (value *tappableValue) Cursor() desktop.Cursor {
+	return desktop.PointerCursor
+}
+
+var (
+	_ fyne.Widget        = (*tappableValue)(nil)
+	_ fyne.Tappable      = (*tappableValue)(nil)
+	_ desktop.Cursorable = (*tappableValue)(nil)
+)
 
 func valueForEdit(node *yamlmodel.Node) string {
 	if node == nil {

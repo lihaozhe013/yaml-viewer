@@ -57,7 +57,7 @@ type Viewer struct {
 	recentSelect  *widget.Select
 	status        *widget.Label
 	errorLabel    *widget.Label
-	valueEditor   *widget.Entry
+	valueEditor   *focusCancelEntry
 	lastError     error
 	editingNode   string
 	documentID    uint64

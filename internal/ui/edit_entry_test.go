@@ -1,0 +1,94 @@
+package ui
+
+import (
+	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/test"
+
+	"yamlviewer/internal/fileio"
+	"yamlviewer/internal/search"
+	"yamlviewer/internal/yamlmodel"
+)
+
+func TestFocusCancelEntryCancelsOnFocusLost(t *testing.T) {
+	application := test.NewApp()
+	defer application.Quit()
+
+	cancelled := false
+	entry := newFocusCancelEntry(func() { cancelled = true })
+	window := test.NewWindow(entry)
+	defer window.Close()
+	window.Resize(fyne.NewSize(400, 200))
+	window.Show()
+
+	window.Canvas().Focus(entry)
+	if window.Canvas().Focused() != entry {
+		t.Fatal("editor did not receive focus")
+	}
+	window.Canvas().Unfocus()
+	if !cancelled {
+		t.Fatal("editor did not cancel after losing focus")
+	}
+}
+
+func TestTappableValueInvokesEditAction(t *testing.T) {
+	called := false
+	value := newTappableValue(canvas.NewRectangle(nil), func() { called = true })
+
+	value.Tapped(nil)
+	if !called {
+		t.Fatal("clicking the value did not invoke the edit action")
+	}
+}
+
+func TestViewerFocusesAndCancelsValueEditor(t *testing.T) {
+	application := test.NewApp()
+	defer application.Quit()
+
+	model, err := yamlmodel.Decode([]byte("answer: 42\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := model.Documents[0].Root.Children[0]
+	viewer := New(application)
+	viewer.current = &fileio.LoadedFile{Model: model, Index: search.NewIndex(model)}
+	viewer.state.Selected = node
+	viewer.updateInspector(node)
+	viewer.beginEditValue()
+
+	if viewer.editingNode != node.ID {
+		t.Fatal("value editor did not open")
+	}
+	if viewer.window.Canvas().Focused() != viewer.valueEditor {
+		t.Fatal("value editor did not receive focus")
+	}
+	viewer.window.Canvas().Unfocus()
+	if viewer.editingNode != "" {
+		t.Fatal("value editor did not cancel after losing focus")
+	}
+}
+
+func TestEditorActionButtonDoesNotCancelOnClick(t *testing.T) {
+	application := test.NewApp()
+	defer application.Quit()
+
+	cancelled := false
+	entry := newFocusCancelEntry(func() { cancelled = true })
+	called := false
+	button := newEditorActionButton("Apply", entry.preserveNextFocusLoss, func() { called = true })
+	window := test.NewWindow(container.NewVBox(entry, button))
+	defer window.Close()
+	window.Show()
+	window.Canvas().Focus(entry)
+
+	button.Tapped(nil)
+	if !called {
+		t.Fatal("editor action button did not invoke its action")
+	}
+	if cancelled {
+		t.Fatal("editor action button incorrectly cancelled editing")
+	}
+}

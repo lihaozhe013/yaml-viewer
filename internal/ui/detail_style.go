@@ -150,9 +150,12 @@ func detailCard(palette detailPalette, section detailSection, title, subtitle st
 	accent := canvas.NewRectangle(palette.accent(section))
 	accent.SetMinSize(fyne.NewSize(5, 1))
 
-	heading := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	heading.SizeName = theme.SizeNameSubHeadingText
-	objects := []fyne.CanvasObject{heading}
+	objects := make([]fyne.CanvasObject, 0, 3)
+	if title != "" {
+		heading := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+		heading.SizeName = theme.SizeNameSubHeadingText
+		objects = append(objects, heading)
+	}
 	if subtitle != "" {
 		subheading := widget.NewLabel(subtitle)
 		subheading.SizeName = theme.SizeNameCaptionText
