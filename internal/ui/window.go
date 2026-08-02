@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
 	"yamlviewer/internal/appstate"
+	"yamlviewer/internal/assets"
 	appconfig "yamlviewer/internal/config"
 	"yamlviewer/internal/display"
 	"yamlviewer/internal/fileio"
@@ -543,7 +545,21 @@ func (viewer *Viewer) setViewMode(mode ViewMode) {
 }
 
 func (viewer *Viewer) showAbout() {
-	dialog.ShowInformation("About YAML Viewer", "YAML Viewer\nA generic YAML browser and scalar editor built with Go and Fyne.", viewer.window)
+	icon := canvas.NewImageFromResource(assets.AppIcon())
+	icon.FillMode = canvas.ImageFillContain
+	icon.SetMinSize(fyne.NewSquareSize(112))
+
+	title := widget.NewLabelWithStyle("YAML Viewer", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	description := widget.NewLabel("A generic YAML browser and scalar editor built with Go and Fyne.")
+	description.Alignment = fyne.TextAlignCenter
+	description.Wrapping = fyne.TextWrapWord
+
+	content := container.NewVBox(
+		container.NewCenter(icon),
+		title,
+		description,
+	)
+	dialog.NewCustom("About YAML Viewer", "Close", content, viewer.window).Show()
 }
 
 func (viewer *Viewer) updateCommands() {

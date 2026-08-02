@@ -32,6 +32,10 @@ reloading, or closing the window.
 The current inspector layout is **Spacious View**. **Compact View** is reserved
 in the View menu for a future layout.
 
+The application uses a bundled blue YAML document icon at runtime. The SVG
+source is in `internal/assets/yaml-viewer.svg`; `Icon.png` and `FyneApp.toml`
+are included for Fyne desktop packaging on macOS, Windows, and Linux.
+
 The Open action uses the host operating system's native file picker: Finder on
 macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
 systems. Linux systems need the GTK 3 runtime libraries installed.

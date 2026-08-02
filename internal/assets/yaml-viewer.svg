@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">YAML Viewer</title>
+  <desc id="desc">A white folded YAML document on a blue rounded square.</desc>
+
+  <rect width="256" height="256" rx="56" fill="#1769D8"/>
+
+  <path d="M78 48h67l33 33v126c0 5.523-4.477 10-10 10H78c-5.523 0-10-4.477-10-10V58c0-5.523 4.477-10 10-10Z" fill="#FFFFFF"/>
+  <path d="M145 48v24c0 5.523 4.477 10 10 10h23" fill="#BBD7FF"/>
+  <path d="M145 48v24c0 5.523 4.477 10 10 10h23" fill="none" stroke="#1769D8" stroke-width="3" stroke-linejoin="round"/>
+
+  <path d="M87 111l12 10-12 10" fill="none" stroke="#1769D8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="112" y="117" width="47" height="8" rx="4" fill="#1769D8"/>
+  <path d="M87 143l12 10-12 10" fill="none" stroke="#1769D8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="112" y="149" width="30" height="8" rx="4" fill="#1769D8"/>
+  <rect x="87" y="181" width="72" height="8" rx="4" fill="#BBD7FF"/>
+</svg>
