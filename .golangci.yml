@@ -1,0 +1,12 @@
+version: "2"
+
+linters:
+  enable:
+    - lll
+  settings:
+    lll:
+      line-length: 80
+
+formatters:
+  enable:
+    - gofmt
