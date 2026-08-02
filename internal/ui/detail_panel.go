@@ -17,6 +17,7 @@ import (
 
 func (viewer *Viewer) updateInspector(node *yamlmodel.Node) {
 	viewer.inspector.RemoveAll()
+	viewer.valueEditor = nil
 	palette := currentDetailPalette()
 
 	if viewer.lastError != nil {
@@ -38,9 +39,15 @@ func (viewer *Viewer) updateInspector(node *yamlmodel.Node) {
 
 	viewer.inspector.Add(detailHeader(viewer, node, palette))
 	viewer.inspector.Add(detailGap())
-	viewer.inspector.Add(detailCard(palette, sectionIdentity, "Identity", "Display and location information", identityContent(node)))
+	valueSubtitle := "Read-only YAML representation"
+	value := valueContent(viewer, node, palette)
+	if viewer.editingNode == node.ID && node.Kind == yamlmodel.ScalarNode {
+		valueSubtitle = "Edit one YAML scalar value, then apply the change"
+		value = editableValueContent(viewer, node, palette)
+	}
+	viewer.inspector.Add(detailCard(palette, sectionValue, "Value", valueSubtitle, value))
 	viewer.inspector.Add(detailGap())
-	viewer.inspector.Add(detailCard(palette, sectionValue, "Value", "Read-only YAML representation", valueContent(viewer, node, palette)))
+	viewer.inspector.Add(detailCard(palette, sectionIdentity, "Identity", "Display and location information", identityContent(node)))
 	viewer.inspector.Add(detailGap())
 	viewer.inspector.Add(detailCard(palette, sectionMetadata, "YAML metadata", "Parser information preserved from the source", metadataContent(node)))
 
@@ -108,10 +115,56 @@ func valueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) f
 	gridBackground.CornerRadius = 6
 	gridBackground.SetMinSize(fyne.NewSize(1, 72))
 	code := container.NewStack(gridBackground, container.NewScroll(grid))
+	actions := []fyne.CanvasObject{widget.NewButton("Copy value", func() { viewer.copy(value) })}
+	if node.Kind == yamlmodel.ScalarNode {
+		actions = append(actions, widget.NewButton("Edit value", viewer.beginEditValue))
+	}
+	return container.NewVBox(code, container.NewHBox(actions...))
+}
+
+func editableValueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) fyne.CanvasObject {
+	entry := widget.NewMultiLineEntry()
+	entry.SetText(valueForEdit(node))
+	entry.Wrapping = fyne.TextWrapWord
+	entry.SetMinRowsVisible(4)
+	viewer.valueEditor = entry
+
+	validation := widget.NewLabel("")
+	validation.Wrapping = fyne.TextWrapWord
+	validation.TextStyle = fyne.TextStyle{Italic: true}
+
+	apply := func() {
+		if err := viewer.commitScalarEdit(node, entry.Text); err != nil {
+			validation.SetText("Invalid value: " + err.Error())
+			return
+		}
+	}
+	cancel := func() { viewer.cancelEditValue(node) }
+	entry.OnSubmitted = func(string) { apply() }
+	applyButton := widget.NewButton("Apply", apply)
+	applyButton.Importance = widget.HighImportance
+
 	return container.NewVBox(
-		code,
-		container.NewHBox(widget.NewButton("Copy value", func() { viewer.copy(value) })),
+		widget.NewLabel("Enter one YAML scalar literal. Use quotes for an explicit string or null for a null value."),
+		entry,
+		validation,
+		container.NewHBox(
+			widget.NewButton("Cancel", cancel),
+			applyButton,
+			widget.NewButton("Copy value", func() { viewer.copy(entry.Text) }),
+		),
+		readOnlyText(valueForDisplay(node), palette, false),
 	)
+}
+
+func valueForEdit(node *yamlmodel.Node) string {
+	if node == nil {
+		return ""
+	}
+	if node.YAML != "" {
+		return node.YAML
+	}
+	return valueForDisplay(node)
 }
 
 func metadataContent(node *yamlmodel.Node) fyne.CanvasObject {

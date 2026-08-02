@@ -32,7 +32,8 @@ func DecodeReader(reader io.Reader) (*File, error) {
 		}
 
 		decoded := Document{Number: documentNumber}
-		if len(document.Content) == 0 {
+		decoded.Source = &document
+		if len(document.Content) == 0 || isEmptyDocument(document.Content) {
 			decoded.Empty = true
 		} else {
 			builder := nodeBuilder{documentNumber: documentNumber, nextID: 1}
@@ -42,6 +43,14 @@ func DecodeReader(reader io.Reader) (*File, error) {
 	}
 	file.Empty = len(file.Documents) == 0
 	return file, nil
+}
+
+func isEmptyDocument(documentContent []*yaml.Node) bool {
+	if len(documentContent) != 1 || documentContent[0] == nil {
+		return false
+	}
+	node := documentContent[0]
+	return node.Kind == yaml.ScalarNode && node.Tag == "!!null" && node.Value == ""
 }
 
 type nodeBuilder struct {
@@ -67,6 +76,7 @@ func (b *nodeBuilder) build(source *yaml.Node, path, key string, index int, pare
 		Column:   source.Column,
 		Comments: Comments{Head: source.HeadComment, Line: source.LineComment, Foot: source.FootComment},
 		Parent:   parent,
+		source:   source,
 	}
 	if encoded, err := yaml.Marshal(source); err == nil {
 		node.YAML = strings.TrimSpace(string(encoded))

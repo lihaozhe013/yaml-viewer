@@ -1,6 +1,8 @@
 // Package yamlmodel contains the format-independent tree used by the viewer.
 package yamlmodel
 
+import "go.yaml.in/yaml/v3"
+
 // NodeKind identifies the YAML construct represented by a Node.
 type NodeKind string
 
@@ -50,6 +52,11 @@ type Node struct {
 	Duplicate bool
 	// Parent is useful to UI consumers and is not used as part of identity.
 	Parent *Node
+
+	// source points to the corresponding yaml.v3 node. Keeping this link out of
+	// the public fields prevents UI code from mutating the AST without going
+	// through the model's validation and history-aware edit operations.
+	source *yaml.Node
 }
 
 // IsContainer reports whether the node can have children.
