@@ -23,6 +23,13 @@ The last successfully opened file is remembered in
 launch when no command-line path is provided. A command-line path takes
 precedence; on the first launch, the viewer starts empty.
 
+Search defaults to **Smart Fuzzy** matching. Use the search button or **View →
+Search Settings** to enable **Keyword Match**, which requires every keyword but
+ignores keyword order. For example, `player speed attack` and
+`player attack speed` can both match `player.attack_speed`. Search mode is
+stored in the config and missing fields are filled from the embedded template
+at `internal/config/default.yaml` when the application starts.
+
 Select a scalar node and choose **Edit Value** to edit one YAML scalar literal.
 The value is parsed as YAML, so quotes, numbers, booleans, and `null` retain
 their YAML meaning. Use **Save** to write the current file or **Save As** to

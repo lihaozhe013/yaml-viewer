@@ -23,7 +23,7 @@ func TestSearchMatchesEquivalentFormsAndKeepsAncestors(t *testing.T) {
 	}
 	index := NewIndex(file)
 	for _, query := range []string{"tick_rate", "Tick Rate", "tick-rate", "tickRate", "tickrate"} {
-		results := index.Search(query)
+		results := index.Search(query, ModeSmartFuzzy)
 		if len(results) == 0 || results[0].Node.Key != "tick_rate" {
 			t.Errorf("Search(%q) = %#v", query, results)
 		}
@@ -41,9 +41,26 @@ func TestSearchValueAndMetadata(t *testing.T) {
 	}
 	index := NewIndex(file)
 	for _, query := range []string{"hello", "custom", "anchor", "searchable"} {
-		if len(index.Search(query)) == 0 {
+		if len(index.Search(query, ModeSmartFuzzy)) == 0 {
 			t.Errorf("Search(%q) returned no results", query)
 		}
+	}
+}
+
+func TestKeywordSearchIgnoresOrderAndRequiresWholeKeywords(t *testing.T) {
+	file, err := yamlmodel.Decode([]byte("player:\n  attack_speed: 30\n  attack: 10\nplaying: true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := NewIndex(file)
+	for _, query := range []string{"player speed attack", "player attack speed"} {
+		results := index.Search(query, ModeKeyword)
+		if len(results) == 0 || results[0].Node.Key != "attack_speed" {
+			t.Errorf("Keyword search %q = %#v, want attack_speed first", query, results)
+		}
+	}
+	if results := index.Search("pla speed attack", ModeKeyword); len(results) != 0 {
+		t.Fatalf("Keyword search accepted partial keyword: %#v", results)
 	}
 }
 
@@ -55,6 +72,6 @@ func BenchmarkSearchNested(b *testing.B) {
 	index := NewIndex(file)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = index.Search("tick rate")
+		_ = index.Search("tick rate", ModeSmartFuzzy)
 	}
 }

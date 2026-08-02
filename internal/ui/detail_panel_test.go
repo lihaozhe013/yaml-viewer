@@ -65,6 +65,7 @@ func TestHasComments(t *testing.T) {
 }
 
 func TestUpdateInspectorBuildsCardLayout(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	application := test.NewApp()
 	defer application.Quit()
 	viewer := New(application)

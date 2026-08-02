@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"log"
 	"path/filepath"
 	"strings"
@@ -39,48 +40,51 @@ type treeItem struct {
 // widgets are accessed on the Fyne UI thread; load and search work happens in
 // goroutines and returns through fyne.Do.
 type Viewer struct {
-	app      fyne.App
-	window   fyne.Window
-	state    *appstate.State
-	recent   *fileio.RecentFiles
-	picker   filepicker.Picker
-	config   appconfig.Config
-	history  *history.History
-	viewMode ViewMode
+	app        fyne.App
+	window     fyne.Window
+	state      *appstate.State
+	recent     *fileio.RecentFiles
+	picker     filepicker.Picker
+	config     appconfig.Config
+	history    *history.History
+	viewMode   ViewMode
+	searchMode search.Mode
 
 	current *fileio.LoadedFile
 	items   map[string]treeItem
 	visible map[string]bool
 	results []search.Result
 
-	tree          *widget.Tree
-	inspector     *fyne.Container
-	searchEntry   *widget.Entry
-	recentSelect  *widget.Select
-	status        *widget.Label
-	errorLabel    *widget.Label
-	valueEditor   *focusCancelEntry
-	lastError     error
-	editingNode   string
-	documentID    uint64
-	saving        bool
-	closing       bool
-	mainMenu      *fyne.MainMenu
-	fileMenu      *fyne.Menu
-	editMenu      *fyne.Menu
-	viewMenu      *fyne.Menu
-	aboutMenu     *fyne.Menu
-	saveItem      *fyne.MenuItem
-	saveAsItem    *fyne.MenuItem
-	reloadItem    *fyne.MenuItem
-	editValueItem *fyne.MenuItem
-	undoItem      *fyne.MenuItem
-	redoItem      *fyne.MenuItem
-	spaciousItem  *fyne.MenuItem
-	compactItem   *fyne.MenuItem
-	programmatic  bool
-	searchMu      sync.Mutex
-	searchTimer   *time.Timer
+	tree                 *widget.Tree
+	inspector            *fyne.Container
+	searchEntry          *widget.Entry
+	searchSettingsButton *widget.Button
+	recentSelect         *widget.Select
+	status               *widget.Label
+	errorLabel           *widget.Label
+	valueEditor          *focusCancelEntry
+	lastError            error
+	editingNode          string
+	documentID           uint64
+	saving               bool
+	closing              bool
+	mainMenu             *fyne.MainMenu
+	fileMenu             *fyne.Menu
+	editMenu             *fyne.Menu
+	viewMenu             *fyne.Menu
+	aboutMenu            *fyne.Menu
+	saveItem             *fyne.MenuItem
+	saveAsItem           *fyne.MenuItem
+	reloadItem           *fyne.MenuItem
+	editValueItem        *fyne.MenuItem
+	undoItem             *fyne.MenuItem
+	redoItem             *fyne.MenuItem
+	spaciousItem         *fyne.MenuItem
+	compactItem          *fyne.MenuItem
+	searchSettingsItem   *fyne.MenuItem
+	programmatic         bool
+	searchMu             sync.Mutex
+	searchTimer          *time.Timer
 }
 
 // New creates the application window and its widgets.
@@ -90,15 +94,16 @@ func New(application fyne.App) *Viewer {
 		log.Printf("[config] load failed: %v", err)
 	}
 	viewer := &Viewer{
-		app:      application,
-		state:    appstate.New(),
-		recent:   fileio.NewRecentFiles(10),
-		picker:   filepicker.NewNative(),
-		config:   storedConfig,
-		history:  history.New(1000),
-		viewMode: ViewModeSpacious,
-		items:    make(map[string]treeItem),
-		visible:  make(map[string]bool),
+		app:        application,
+		state:      appstate.New(),
+		recent:     fileio.NewRecentFiles(10),
+		picker:     filepicker.NewNative(),
+		config:     storedConfig,
+		history:    history.New(1000),
+		viewMode:   ViewModeSpacious,
+		searchMode: search.NormalizeMode(search.Mode(storedConfig.SearchMode)),
+		items:      make(map[string]treeItem),
+		visible:    make(map[string]bool),
 	}
 	if storedConfig.LastOpenedFile != "" {
 		viewer.recent.Add(storedConfig.LastOpenedFile)
@@ -116,6 +121,7 @@ func (viewer *Viewer) build() {
 	viewer.searchEntry.OnChanged = func(_ string) {
 		viewer.scheduleSearch()
 	}
+	viewer.searchSettingsButton = widget.NewButton(viewer.searchModeLabel(), viewer.showSearchSettings)
 
 	openButton := widget.NewButton("Open", viewer.openDialog)
 	reloadButton := widget.NewButton("Reload", viewer.reload)
@@ -127,7 +133,8 @@ func (viewer *Viewer) build() {
 	viewer.recentSelect.PlaceHolder = "Recent files"
 	viewer.recentSelect.SetOptions(viewer.recent.List())
 	clearButton := widget.NewButton("Clear", func() { viewer.searchEntry.SetText("") })
-	toolbar := container.NewBorder(nil, nil, container.NewHBox(openButton, reloadButton), clearButton,
+	searchActions := container.NewHBox(viewer.searchSettingsButton, clearButton)
+	toolbar := container.NewBorder(nil, nil, container.NewHBox(openButton, reloadButton), searchActions,
 		container.NewBorder(nil, nil, nil, viewer.recentSelect, viewer.searchEntry))
 
 	viewer.tree = widget.NewTree(
@@ -209,7 +216,9 @@ func (viewer *Viewer) buildMenus() {
 
 	viewer.spaciousItem = fyne.NewMenuItem("Spacious View", func() { viewer.setViewMode(ViewModeSpacious) })
 	viewer.compactItem = fyne.NewMenuItem("Compact View", func() { viewer.setViewMode(ViewModeCompact) })
-	viewer.viewMenu = fyne.NewMenu("View", viewer.spaciousItem, viewer.compactItem)
+	viewer.searchSettingsItem = fyne.NewMenuItem("Search Settings…", viewer.showSearchSettings)
+	viewer.viewMenu = fyne.NewMenu("View", viewer.spaciousItem, viewer.compactItem,
+		fyne.NewMenuItemSeparator(), viewer.searchSettingsItem)
 
 	aboutItem := fyne.NewMenuItem("About YAML Viewer", viewer.showAbout)
 	viewer.aboutMenu = fyne.NewMenu("About", aboutItem)
@@ -544,6 +553,60 @@ func (viewer *Viewer) setViewMode(mode ViewMode) {
 	viewer.updateCommands()
 }
 
+func (viewer *Viewer) searchModeLabel() string {
+	if viewer.searchMode == search.ModeKeyword {
+		return "Search: Keyword Match"
+	}
+	return "Search: Smart Fuzzy"
+}
+
+func (viewer *Viewer) setSearchMode(mode search.Mode) {
+	mode = search.NormalizeMode(mode)
+	if viewer.searchMode == mode {
+		viewer.updateSearchControls()
+		return
+	}
+	viewer.searchMode = mode
+	viewer.config.SearchMode = appconfig.SearchMode(mode)
+	viewer.updateCommands()
+	viewer.scheduleSearchNow()
+}
+
+func (viewer *Viewer) showSearchSettings() {
+	options := []string{"Smart Fuzzy", "Keyword Match"}
+	radio := widget.NewRadioGroup(options, nil)
+	if viewer.searchMode == search.ModeKeyword {
+		radio.SetSelected("Keyword Match")
+	} else {
+		radio.SetSelected("Smart Fuzzy")
+	}
+	radio.OnChanged = func(option string) {
+		if option == "Keyword Match" {
+			viewer.setSearchMode(search.ModeKeyword)
+			return
+		}
+		viewer.setSearchMode(search.ModeSmartFuzzy)
+	}
+
+	description := widget.NewLabel("Choose how search terms are matched against YAML keys, paths, values, and metadata.")
+	description.Wrapping = fyne.TextWrapWord
+	smartDescription := widget.NewLabel("Smart Fuzzy matches case-insensitively and supports exact, prefix, substring, and character-order matches. It is more forgiving when you only know part of a field name.")
+	smartDescription.Wrapping = fyne.TextWrapWord
+	keywordDescription := widget.NewLabel("Keyword Match requires every keyword, ignores their order, and matches complete normalized keywords.")
+	keywordDescription.Wrapping = fyne.TextWrapWord
+	content := container.NewVBox(
+		description,
+		radio,
+		widget.NewSeparator(),
+		smartDescription,
+		keywordDescription,
+	)
+	sizeHint := canvas.NewRectangle(color.Transparent)
+	sizeHint.SetMinSize(fyne.NewSize(520, 220))
+	content = container.NewStack(sizeHint, content)
+	dialog.NewCustom("Search Settings", "Close", content, viewer.window).Show()
+}
+
 func (viewer *Viewer) showAbout() {
 	icon := canvas.NewImageFromResource(assets.AppIcon())
 	icon.FillMode = canvas.ImageFillContain
@@ -577,7 +640,20 @@ func (viewer *Viewer) updateCommands() {
 	viewer.spaciousItem.Checked = viewer.viewMode == ViewModeSpacious
 	viewer.compactItem.Checked = viewer.viewMode == ViewModeCompact
 	viewer.compactItem.Disabled = true
+	viewer.updateSearchControls()
 	viewer.mainMenu.Refresh()
+}
+
+func (viewer *Viewer) updateSearchControls() {
+	if viewer.searchSettingsButton != nil {
+		viewer.searchSettingsButton.SetText(viewer.searchModeLabel())
+		if viewer.searchMode == search.ModeKeyword {
+			viewer.searchSettingsButton.Importance = widget.HighImportance
+		} else {
+			viewer.searchSettingsButton.Importance = widget.MediumImportance
+		}
+		viewer.searchSettingsButton.Refresh()
+	}
 }
 
 func (viewer *Viewer) openPath(path string) {
@@ -622,6 +698,7 @@ func (viewer *Viewer) saveConfig() {
 	if viewer.current != nil {
 		viewer.config.LastOpenedFile = viewer.current.Path
 	}
+	viewer.config.SearchMode = appconfig.SearchMode(viewer.searchMode)
 	if err := appconfig.Save(viewer.config); err != nil {
 		log.Printf("[config] save failed: %v", err)
 	}
@@ -665,8 +742,9 @@ func (viewer *Viewer) beginSearch() {
 		return
 	}
 	generation := viewer.state.Begin()
+	mode := viewer.searchMode
 	go func() {
-		results := loaded.Index.Search(query)
+		results := loaded.Index.Search(query, mode)
 		fyne.Do(func() {
 			if !viewer.state.ApplySearch(generation, query, results) {
 				return

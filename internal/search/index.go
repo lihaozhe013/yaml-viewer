@@ -42,6 +42,23 @@ type Result struct {
 	Score int
 }
 
+// Mode controls how a query is matched against indexed nodes.
+type Mode string
+
+const (
+	ModeSmartFuzzy Mode = "smart_fuzzy"
+	ModeKeyword    Mode = "keyword"
+)
+
+// NormalizeMode returns a supported mode and falls back to smart fuzzy
+// matching for missing or unknown values.
+func NormalizeMode(mode Mode) Mode {
+	if mode == ModeKeyword {
+		return ModeKeyword
+	}
+	return ModeSmartFuzzy
+}
+
 // Index contains entries in YAML source order.
 type Index struct {
 	Entries []*Entry
@@ -104,10 +121,11 @@ func walk(node *yamlmodel.Node, document int, documentName string, order *int, i
 
 // Search returns matching nodes ordered by score, with ties in original YAML
 // order. An empty query returns all indexed nodes in source order.
-func (index *Index) Search(query string) []Result {
+func (index *Index) Search(query string, mode Mode) []Result {
 	if index == nil {
 		return nil
 	}
+	mode = NormalizeMode(mode)
 	normalizedQuery := Normalize(query)
 	if strings.TrimSpace(normalizedQuery.Compact) == "" {
 		results := make([]Result, 0, len(index.Entries))
@@ -118,7 +136,14 @@ func (index *Index) Search(query string) []Result {
 	}
 	results := make([]Result, 0)
 	for _, entry := range index.Entries {
-		if score, ok := scoreEntry(entry, normalizedQuery); ok {
+		var score int
+		var ok bool
+		if mode == ModeKeyword {
+			score, ok = scoreKeywordEntry(entry, normalizedQuery)
+		} else {
+			score, ok = scoreFuzzyEntry(entry, normalizedQuery)
+		}
+		if ok {
 			results = append(results, Result{Node: entry.Node, Score: score})
 		}
 	}
@@ -140,8 +165,8 @@ func VisibleIDs(results []Result) map[string]bool {
 	return visible
 }
 
-func scoreEntry(entry *Entry, query Normalized) (int, bool) {
-	fields := []searchField{
+func searchableFields(entry *Entry) []searchField {
+	return []searchField{
 		{value: entry.name, base: 1000, kind: "name"},
 		{value: entry.display, base: 950, kind: "name"},
 		{value: entry.path, base: 850, kind: "path"},
@@ -152,6 +177,10 @@ func scoreEntry(entry *Entry, query Normalized) (int, bool) {
 		{value: entry.comment, base: 150, kind: "metadata"},
 		{value: entry.document, base: 400, kind: "document"},
 	}
+}
+
+func scoreFuzzyEntry(entry *Entry, query Normalized) (int, bool) {
+	fields := searchableFields(entry)
 
 	bestTotal := 0
 	for _, token := range query.Tokens {
@@ -179,10 +208,47 @@ func scoreEntry(entry *Entry, query Normalized) (int, bool) {
 	return bestTotal, true
 }
 
+func scoreKeywordEntry(entry *Entry, query Normalized) (int, bool) {
+	fields := searchableFields(entry)
+	seen := make(map[string]bool, len(query.Tokens))
+	bestTotal := 0
+	for _, token := range query.Tokens {
+		token = normalizeToken(token)
+		if token == "" || seen[token] {
+			continue
+		}
+		seen[token] = true
+		best, found := 0, false
+		for _, field := range fields {
+			if !containsToken(field.value, token) {
+				continue
+			}
+			candidate := field.base + 100
+			if candidate > best {
+				best, found = candidate, true
+			}
+		}
+		if !found {
+			return 0, false
+		}
+		bestTotal += best
+	}
+	return bestTotal, true
+}
+
 type searchField struct {
 	value Normalized
 	base  int
 	kind  string
+}
+
+func containsToken(field Normalized, token string) bool {
+	for _, fieldToken := range field.Tokens {
+		if normalizeToken(fieldToken) == token {
+			return true
+		}
+	}
+	return false
 }
 
 func exactWhole(field, query Normalized) bool {

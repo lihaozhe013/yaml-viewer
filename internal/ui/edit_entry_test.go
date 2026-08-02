@@ -45,6 +45,7 @@ func TestTappableValueInvokesEditAction(t *testing.T) {
 }
 
 func TestViewerFocusesAndCancelsValueEditor(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	application := test.NewApp()
 	defer application.Quit()
 
