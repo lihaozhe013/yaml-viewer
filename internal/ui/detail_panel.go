@@ -78,7 +78,7 @@ func detailHeader(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) f
 		titleRow.Add(statusChip("DUPLICATE KEY", palette.warningAccent, colorForChip(palette, sectionWarning)))
 	}
 
-	path := widget.NewLabel(fmt.Sprintf("%s  ·  %s", valueOrDash(node.Key), node.Path))
+	path := widget.NewLabel(fmt.Sprintf("%s", node.Path))
 	path.TextStyle = fyne.TextStyle{Monospace: true}
 	path.Wrapping = fyne.TextWrapWord
 	path.Selectable = true
