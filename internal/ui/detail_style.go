@@ -48,6 +48,9 @@ func currentDetailPalette() detailPalette {
 		if application.Settings().Theme() != nil {
 			activeTheme = application.Settings().Theme()
 		}
+		if selected, ok := activeTheme.(fixedVariantTheme); ok {
+			variant = selected.variant
+		}
 	}
 	return paletteForTheme(activeTheme, variant)
 }

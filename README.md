@@ -30,6 +30,9 @@ ignores keyword order. For example, `player speed attack` and
 stored in the config and missing fields are filled from the embedded template
 at `internal/config/default.yaml` when the application starts.
 
+Use **View → Dark Mode** to toggle between dark and light themes. The selected
+theme is stored in the same config file and restored on the next launch.
+
 Select a scalar node and choose **Edit Value** to edit one YAML scalar literal.
 The value is parsed as YAML, so quotes, numbers, booleans, and `null` retain
 their YAML meaning. Use **Save** to write the current file or **Save As** to

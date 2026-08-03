@@ -28,12 +28,21 @@ const (
 	SearchModeKeyword    SearchMode = "keyword"
 )
 
+// ThemeMode identifies the application's color scheme.
+type ThemeMode string
+
+const (
+	ThemeModeLight ThemeMode = "light"
+	ThemeModeDark  ThemeMode = "dark"
+)
+
 // Config is intentionally small and extensible. Unknown fields from the
 // user's config are kept in raw so newer versions can add defaults without
 // deleting user-owned extensions.
 type Config struct {
 	LastOpenedFile string     `yaml:"last_opened_file"`
 	SearchMode     SearchMode `yaml:"search_mode"`
+	ThemeMode      ThemeMode  `yaml:"theme"`
 
 	raw           map[string]any
 	invalidSource bool
@@ -49,6 +58,19 @@ func NormalizeSearchMode(value SearchMode) SearchMode {
 		return SearchModeSmartFuzzy
 	default:
 		return SearchModeSmartFuzzy
+	}
+}
+
+// NormalizeThemeMode returns a supported theme and falls back to the light
+// theme when a config value is missing or invalid.
+func NormalizeThemeMode(value ThemeMode) ThemeMode {
+	switch value {
+	case ThemeModeDark:
+		return ThemeModeDark
+	case ThemeModeLight:
+		return ThemeModeLight
+	default:
+		return ThemeModeLight
 	}
 }
 
@@ -171,6 +193,7 @@ func (value Config) MarshalYAML() (any, error) {
 	}
 	fields["last_opened_file"] = value.LastOpenedFile
 	fields["search_mode"] = NormalizeSearchMode(value.SearchMode)
+	fields["theme"] = NormalizeThemeMode(value.ThemeMode)
 	return fields, nil
 }
 
@@ -184,6 +207,12 @@ func configFromMap(fields map[string]any) Config {
 	}
 	if value.SearchMode == "" {
 		value.SearchMode = SearchModeSmartFuzzy
+	}
+	if raw, ok := fields["theme"].(string); ok {
+		value.ThemeMode = NormalizeThemeMode(ThemeMode(raw))
+	}
+	if value.ThemeMode == "" {
+		value.ThemeMode = ThemeModeLight
 	}
 	return value
 }
@@ -209,6 +238,10 @@ func normalizeKnownFields(fields, fallback map[string]any) (map[string]any, bool
 	if raw, ok := fallback["search_mode"].(string); ok && NormalizeSearchMode(SearchMode(raw)) == SearchMode(raw) {
 		defaultMode = raw
 	}
+	defaultTheme := string(ThemeModeLight)
+	if raw, ok := fallback["theme"].(string); ok && NormalizeThemeMode(ThemeMode(raw)) == ThemeMode(raw) {
+		defaultTheme = raw
+	}
 	if raw, ok := fields["last_opened_file"]; !ok {
 		fields["last_opened_file"] = defaultPath
 		changed = true
@@ -222,6 +255,14 @@ func normalizeKnownFields(fields, fallback map[string]any) (map[string]any, bool
 		changed = true
 	} else if mode, ok := raw.(string); !ok || NormalizeSearchMode(SearchMode(mode)) != SearchMode(mode) {
 		fields["search_mode"] = defaultMode
+		changed = true
+	}
+
+	if raw, ok := fields["theme"]; !ok {
+		fields["theme"] = defaultTheme
+		changed = true
+	} else if mode, ok := raw.(string); !ok || NormalizeThemeMode(ThemeMode(mode)) != ThemeMode(mode) {
+		fields["theme"] = defaultTheme
 		changed = true
 	}
 	return fields, changed

@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"yamlviewer/internal/appstate"
@@ -48,6 +49,7 @@ type Viewer struct {
 	config     appconfig.Config
 	history    *history.History
 	viewMode   ViewMode
+	themeMode  appconfig.ThemeMode
 	searchMode search.Mode
 
 	current *fileio.LoadedFile
@@ -81,6 +83,7 @@ type Viewer struct {
 	redoItem             *fyne.MenuItem
 	spaciousItem         *fyne.MenuItem
 	compactItem          *fyne.MenuItem
+	themeItem            *fyne.MenuItem
 	searchSettingsItem   *fyne.MenuItem
 	programmatic         bool
 	searchMu             sync.Mutex
@@ -101,10 +104,12 @@ func New(application fyne.App) *Viewer {
 		config:     storedConfig,
 		history:    history.New(1000),
 		viewMode:   ViewModeSpacious,
+		themeMode:  appconfig.NormalizeThemeMode(storedConfig.ThemeMode),
 		searchMode: search.NormalizeMode(search.Mode(storedConfig.SearchMode)),
 		items:      make(map[string]treeItem),
 		visible:    make(map[string]bool),
 	}
+	viewer.setThemeMode(viewer.themeMode)
 	if storedConfig.LastOpenedFile != "" {
 		viewer.recent.Add(storedConfig.LastOpenedFile)
 	}
@@ -216,9 +221,10 @@ func (viewer *Viewer) buildMenus() {
 
 	viewer.spaciousItem = fyne.NewMenuItem("Spacious View", func() { viewer.setViewMode(ViewModeSpacious) })
 	viewer.compactItem = fyne.NewMenuItem("Compact View", func() { viewer.setViewMode(ViewModeCompact) })
+	viewer.themeItem = fyne.NewMenuItem("Dark Mode", viewer.toggleThemeMode)
 	viewer.searchSettingsItem = fyne.NewMenuItem("Search Settings…", viewer.showSearchSettings)
 	viewer.viewMenu = fyne.NewMenu("View", viewer.spaciousItem, viewer.compactItem,
-		fyne.NewMenuItemSeparator(), viewer.searchSettingsItem)
+		fyne.NewMenuItemSeparator(), viewer.themeItem, viewer.searchSettingsItem)
 
 	aboutItem := fyne.NewMenuItem("About YAML Viewer", viewer.showAbout)
 	viewer.aboutMenu = fyne.NewMenu("About", aboutItem)
@@ -553,6 +559,34 @@ func (viewer *Viewer) setViewMode(mode ViewMode) {
 	viewer.updateCommands()
 }
 
+func (viewer *Viewer) toggleThemeMode() {
+	if viewer.themeMode == appconfig.ThemeModeDark {
+		viewer.setThemeMode(appconfig.ThemeModeLight)
+		return
+	}
+	viewer.setThemeMode(appconfig.ThemeModeDark)
+}
+
+func (viewer *Viewer) setThemeMode(mode appconfig.ThemeMode) {
+	mode = appconfig.NormalizeThemeMode(mode)
+	viewer.themeMode = mode
+	viewer.config.ThemeMode = mode
+	variant := theme.VariantLight
+	if mode == appconfig.ThemeModeDark {
+		variant = theme.VariantDark
+	}
+	viewer.app.Settings().SetTheme(fixedVariantTheme{
+		base:    theme.DefaultTheme(),
+		variant: variant,
+	})
+	if viewer.inspector != nil {
+		viewer.updateInspector(viewer.selectedNode())
+	}
+	if viewer.mainMenu != nil {
+		viewer.updateCommands()
+	}
+}
+
 func (viewer *Viewer) searchModeLabel() string {
 	if viewer.searchMode == search.ModeKeyword {
 		return "Search: Keyword Match"
@@ -640,6 +674,7 @@ func (viewer *Viewer) updateCommands() {
 	viewer.spaciousItem.Checked = viewer.viewMode == ViewModeSpacious
 	viewer.compactItem.Checked = viewer.viewMode == ViewModeCompact
 	viewer.compactItem.Disabled = true
+	viewer.themeItem.Checked = viewer.themeMode == appconfig.ThemeModeDark
 	viewer.updateSearchControls()
 	viewer.mainMenu.Refresh()
 }
@@ -699,6 +734,7 @@ func (viewer *Viewer) saveConfig() {
 		viewer.config.LastOpenedFile = viewer.current.Path
 	}
 	viewer.config.SearchMode = appconfig.SearchMode(viewer.searchMode)
+	viewer.config.ThemeMode = viewer.themeMode
 	if err := appconfig.Save(viewer.config); err != nil {
 		log.Printf("[config] save failed: %v", err)
 	}
