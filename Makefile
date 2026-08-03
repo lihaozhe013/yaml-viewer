@@ -11,19 +11,17 @@ endif
 default: run
 
 run:
-	go run -tags debug .
+	go run .
 
 build:
-	go build -tags debug .
+	go build .
 
-debug:
-	go build -tags debug .
 
 release:
 	go build -tags release -trimpath -ldflags "$(RELEASE_LDFLAGS)" .
 
 clean:
-	rm -f yamlviewer yamlviewer.exe yamlviewer-debug.exe
+	rm -f yamlviewer yamlviewer.exe
 
 format:
 	gofmt -w $(GO_FILES)
