@@ -61,6 +61,7 @@ type Viewer struct {
 	inspector            *fyne.Container
 	searchEntry          *widget.Entry
 	searchSettingsButton *widget.Button
+	expandCollapseButton *widget.Button
 	recentSelect         *widget.Select
 	status               *widget.Label
 	errorLabel           *widget.Label
@@ -130,6 +131,7 @@ func (viewer *Viewer) build() {
 
 	openButton := widget.NewButton("Open", viewer.openDialog)
 	reloadButton := widget.NewButton("Reload", viewer.reload)
+	viewer.expandCollapseButton = widget.NewButton("Expand", viewer.toggleSelectedBranch)
 	viewer.recentSelect = widget.NewSelect(nil, func(path string) {
 		if path != "" {
 			viewer.requestOpenPath(path)
@@ -139,7 +141,7 @@ func (viewer *Viewer) build() {
 	viewer.recentSelect.SetOptions(viewer.recent.List())
 	clearButton := widget.NewButton("Clear", func() { viewer.searchEntry.SetText("") })
 	searchActions := container.NewHBox(viewer.searchSettingsButton, clearButton)
-	toolbar := container.NewBorder(nil, nil, container.NewHBox(openButton, reloadButton), searchActions,
+	toolbar := container.NewBorder(nil, nil, container.NewHBox(openButton, reloadButton, viewer.expandCollapseButton), searchActions,
 		container.NewBorder(nil, nil, nil, viewer.recentSelect, viewer.searchEntry))
 
 	viewer.tree = widget.NewTree(
@@ -155,11 +157,13 @@ func (viewer *Viewer) build() {
 	viewer.tree.OnBranchOpened = func(id widget.TreeNodeID) {
 		if !viewer.programmatic {
 			viewer.state.Expanded[id] = true
+			viewer.updateExpandCollapseButton()
 		}
 	}
 	viewer.tree.OnBranchClosed = func(id widget.TreeNodeID) {
 		if !viewer.programmatic {
 			viewer.state.Expanded[id] = false
+			viewer.updateExpandCollapseButton()
 		}
 	}
 
@@ -676,6 +680,7 @@ func (viewer *Viewer) updateCommands() {
 	viewer.compactItem.Disabled = true
 	viewer.themeItem.Checked = viewer.themeMode == appconfig.ThemeModeDark
 	viewer.updateSearchControls()
+	viewer.updateExpandCollapseButton()
 	viewer.mainMenu.Refresh()
 }
 
@@ -689,6 +694,82 @@ func (viewer *Viewer) updateSearchControls() {
 		}
 		viewer.searchSettingsButton.Refresh()
 	}
+}
+
+func (viewer *Viewer) updateExpandCollapseButton() {
+	if viewer.expandCollapseButton == nil {
+		return
+	}
+	viewer.expandCollapseButton.SetText(viewer.expandCollapseLabel())
+	if viewer.canToggleSelectedBranch() {
+		viewer.expandCollapseButton.Enable()
+	} else {
+		viewer.expandCollapseButton.Disable()
+	}
+}
+
+func (viewer *Viewer) expandCollapseLabel() string {
+	if viewer.selectedBranchFullyExpanded() {
+		return "Collapse"
+	}
+	return "Expand"
+}
+
+func (viewer *Viewer) canToggleSelectedBranch() bool {
+	node := viewer.selectedNode()
+	return viewer.current != nil && node != nil && len(node.Children) > 0
+}
+
+func (viewer *Viewer) selectedBranchFullyExpanded() bool {
+	if !viewer.canToggleSelectedBranch() {
+		return false
+	}
+	return viewer.subtreeExpanded(viewer.selectedNode())
+}
+
+func (viewer *Viewer) subtreeExpanded(node *yamlmodel.Node) bool {
+	if node == nil || len(node.Children) == 0 {
+		return true
+	}
+	if viewer.tree == nil || !viewer.tree.IsBranchOpen(node.ID) {
+		return false
+	}
+	for _, child := range node.Children {
+		if !viewer.subtreeExpanded(child) {
+			return false
+		}
+	}
+	return true
+}
+
+func (viewer *Viewer) toggleSelectedBranch() {
+	if !viewer.canToggleSelectedBranch() {
+		return
+	}
+	expand := !viewer.selectedBranchFullyExpanded()
+	viewer.programmatic = true
+	defer func() { viewer.programmatic = false }()
+	viewer.setSubtreeExpanded(viewer.selectedNode(), expand)
+	viewer.updateExpandCollapseButton()
+}
+
+func (viewer *Viewer) setSubtreeExpanded(node *yamlmodel.Node, expanded bool) {
+	if node == nil || len(node.Children) == 0 {
+		return
+	}
+	if expanded {
+		viewer.state.Expanded[node.ID] = true
+		viewer.tree.OpenBranch(node.ID)
+		for _, child := range node.Children {
+			viewer.setSubtreeExpanded(child, true)
+		}
+		return
+	}
+	for _, child := range node.Children {
+		viewer.setSubtreeExpanded(child, false)
+	}
+	viewer.state.Expanded[node.ID] = false
+	viewer.tree.CloseBranch(node.ID)
 }
 
 func (viewer *Viewer) openPath(path string) {
@@ -916,6 +997,7 @@ func (viewer *Viewer) restoreBranches() {
 		}
 		viewer.tree.OpenBranch("tree-root")
 	}
+	viewer.updateExpandCollapseButton()
 }
 
 func (viewer *Viewer) selectTreeItem(id string) {
