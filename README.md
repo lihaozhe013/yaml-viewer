@@ -49,36 +49,3 @@ are included for Fyne desktop packaging on macOS, Windows, and Linux.
 The Open action uses the host operating system's native file picker: Finder on
 macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
 systems. Linux systems need the GTK 3 runtime libraries installed.
-
-Verify the project with:
-
-```bash
-go test ./...
-go vet ./...
-go build -tags debug .
-go build -tags release -trimpath -ldflags "-s -w" .
-```
-
-For development, use `make debug` or `make run`. Debug builds keep diagnostic
-logs enabled and use the normal Windows console subsystem. Release builds use
-the Windows GUI subsystem, so they do not open a terminal window, and disable
-standard-library logging entirely. The equivalent direct commands are:
-
-```powershell
-go build -tags debug .
-go build -tags release -trimpath -ldflags "-H=windowsgui -s -w" .
-```
-
-The Makefile lets Go choose the native output name for the current platform.
-On Windows, its release target adds the GUI subsystem flag; on macOS and Linux
-it uses the portable release linker flags.
-
-To create a macOS application bundle and disk image, run:
-
-```bash
-python3 scripts/build_macos.py
-```
-
-The artifacts are written to `dist/macos/`. The disk image includes
-`remove-quarantine.command`, which removes the macOS quarantine attribute from
-the application after explicitly requesting an administrator password.
