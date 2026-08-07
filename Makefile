@@ -34,4 +34,4 @@ build-mac:
 .PHONY: build-windows
 
 build-windows:
-	uv run scripts/build_windows.py
+	uv run --with Pillow scripts/build_windows.py

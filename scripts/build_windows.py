@@ -20,6 +20,9 @@ APP_NAME = "YAML Viewer"
 APP_EXECUTABLE = "yamlviewer.exe"
 APP_IDENTIFIER = "com.yamlviewer.app"
 APP_PUBLISHER = "YAML Viewer"
+ICON_PNG_NAME = "Icon.png"
+ICON_ICO_NAME = "Icon.ico"
+ICON_SIZES = (256, 128, 96, 64, 48, 32, 16)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
@@ -96,6 +99,55 @@ def configure_cgo_environment(env: dict[str, str]) -> None:
     short_prefix = short_windows_path(gcc_prefix)
     env["GCC_EXEC_PREFIX"] = short_prefix.rstrip("\\/") + "\\"
     print(f"[windows_packaging] Using short GCC path: {short_gcc_path}")
+
+
+def write_icon(png_path: Path, ico_path: Path) -> None:
+    """Generate a multi-resolution Icon.ico from the repository's PNG icon."""
+
+    try:
+        from PIL import Image
+    except ImportError as error:
+        raise RuntimeError(
+            "Pillow is required to convert Icon.png to Icon.ico. "
+            "Install it with `uv pip install Pillow` or use "
+            "`uv run --with Pillow scripts/build_windows.py`."
+        ) from error
+
+    with Image.open(png_path) as source:
+        source.load()
+        sizes = [(size, size) for size in ICON_SIZES]
+        source.save(ico_path, format="ICO", sizes=sizes)
+    print(f"[windows_packaging] Generated icon: {ico_path}")
+
+
+def find_rsrc() -> Path:
+    go_bin = subprocess.check_output(
+        ["go", "env", "GOPATH"], cwd=PROJECT_ROOT, text=True
+    ).strip()
+    candidates = [Path(go_bin) / "bin" / "rsrc.exe", Path(go_bin) / "bin" / "rsrc"]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    on_path = shutil.which("rsrc")
+    if on_path:
+        return Path(on_path)
+
+    raise RuntimeError(
+        "rsrc tool not found. Install it with "
+        "`go install github.com/akavel/rsrc@latest`."
+    )
+
+
+def embed_icon(
+    *,
+    rsrc: Path,
+    icon: Path,
+    arch: str,
+    output: Path,
+) -> None:
+    run_command([str(rsrc), "-arch", arch, "-ico", str(icon), "-o", str(output)])
+    print(f"[windows_packaging] Generated resource object: {output}")
 
 
 def find_iscc() -> Path:
@@ -185,6 +237,7 @@ def write_installer_script(
     output_dir: Path,
     version: str,
     file_version: str,
+    icon_path: Path,
 ) -> None:
     script = rf"""
         [Setup]
@@ -200,6 +253,7 @@ def write_installer_script(
         ArchitecturesInstallIn64BitMode=x64compatible
         OutputDir={inno_path(output_dir)}
         OutputBaseFilename={APP_NAME}-{version}-Setup
+        SetupIconFile={inno_path(icon_path)}
         SetupLogging=yes
         Compression=lzma2
         SolidCompression=yes
@@ -221,13 +275,17 @@ def write_installer_script(
 
         [Files]
         Source: "{inno_path(executable)}"; DestDir: "{{app}}"; Flags: ignoreversion
+        Source: "{inno_path(icon_path)}"; DestDir: "{{app}}"; Flags: ignoreversion
 
         [Icons]
-        Name: "{{group}}\{APP_NAME}"; Filename: "{{app}}\{APP_EXECUTABLE}"
+        Name: "{{group}}\{APP_NAME}"; Filename: "{{app}}\{APP_EXECUTABLE}"; \
+            IconFilename: "{{app}}\{ICON_ICO_NAME}"
         Name: "{{group}}\{{cm:UninstallProgram,{APP_NAME}}}"; \
             Filename: "{{uninstallexe}}"
         Name: "{{autodesktop}}\{APP_NAME}"; \
-            Filename: "{{app}}\{APP_EXECUTABLE}"; Tasks: desktopicon
+            Filename: "{{app}}\{APP_EXECUTABLE}"; \
+            IconFilename: "{{app}}\{ICON_ICO_NAME}"; \
+            Tasks: desktopicon
 
         [Run]
         Filename: "{{app}}\{APP_EXECUTABLE}"; \
@@ -243,6 +301,7 @@ def build(args: argparse.Namespace) -> Path:
 
     require_command("go")
     iscc = find_iscc()
+    rsrc = find_rsrc()
 
     goos = subprocess.check_output(
         ["go", "env", "GOOS"], cwd=PROJECT_ROOT, text=True
@@ -271,6 +330,11 @@ def build(args: argparse.Namespace) -> Path:
         staging_dir = Path(temp_dir)
         executable = staging_dir / APP_EXECUTABLE
         installer_script = staging_dir / "installer.iss"
+        icon_path = staging_dir / ICON_ICO_NAME
+        syso_path = staging_dir / f"rsrc_windows_{arch}.syso"
+
+        write_icon(PROJECT_ROOT / ICON_PNG_NAME, icon_path)
+        embed_icon(rsrc=rsrc, icon=icon_path, arch=arch, output=syso_path)
 
         build_env = os.environ.copy()
         build_env.update({"CGO_ENABLED": "1", "GOARCH": arch})
@@ -298,6 +362,7 @@ def build(args: argparse.Namespace) -> Path:
             output_dir=output_dir,
             version=version,
             file_version=file_version,
+            icon_path=icon_path,
         )
         run_command([str(iscc), str(installer_script)], cwd=PROJECT_ROOT)
 

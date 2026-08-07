@@ -65,8 +65,22 @@ override the metadata without changing project files, call the script with
 options:
 
 ```powershell
-uv run scripts/build_windows.py --version 1.2.3 --build 4
+uv run --with Pillow scripts/build_windows.py --version 1.2.3 --build 4
 ```
 
 The script also normalizes MinGW GCC paths when the Windows user directory
 contains spaces, avoiding an external-linker failure during the cgo build.
+
+The installer embeds the application icon so the Windows file dialog,
+shortcuts, and Programs and Features entry use the same blue YAML
+document icon as the macOS bundle. `rsrc.exe` is required alongside Inno
+Setup 6; install it with:
+
+```powershell
+go install github.com/akavel/rsrc@latest
+```
+
+The Makefile target pulls Pillow in through `uv run --with Pillow` so the
+PNG-to-ICO conversion needs no permanent project dependency. `Icon.ico`
+and the generated `rsrc_windows_*.syso` are produced in a temporary
+staging directory and are not written to the repository.
