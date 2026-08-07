@@ -49,3 +49,24 @@ are included for Fyne desktop packaging on macOS, Windows, and Linux.
 The Open action uses the host operating system's native file picker: Finder on
 macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
 systems. Linux systems need the GTK 3 runtime libraries installed.
+
+## Build the Windows installer
+
+Install [Inno Setup 6](https://jrsoftware.org/isdl.php) and make `ISCC.exe`
+available on `PATH`. Then run the Windows packaging target:
+
+```powershell
+make build-windows
+```
+
+The Python packaging script reads the version and build number from
+`FyneApp.toml` and writes `dist/windows/YAML Viewer-1.0.0-Setup.exe`. To
+override the metadata without changing project files, call the script with
+options:
+
+```powershell
+uv run scripts/build_windows.py --version 1.2.3 --build 4
+```
+
+The script also normalizes MinGW GCC paths when the Windows user directory
+contains spaces, avoiding an external-linker failure during the cgo build.

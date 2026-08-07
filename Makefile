@@ -30,3 +30,8 @@ format:
 build-mac:
 	go build -o yamlviewer .
 	uv run scripts/build_macos.py
+
+.PHONY: build-windows
+
+build-windows:
+	uv run scripts/build_windows.py
