@@ -50,6 +50,41 @@ The Open action uses the host operating system's native file picker: Finder on
 macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
 systems. Linux systems need the GTK 3 runtime libraries installed.
 
+## Build and debug
+
+Build a production binary for the current platform with:
+
+```bash
+make build
+```
+
+The Python build helper configures cgo and platform-specific linker flags. The
+Makefile does not require `GOOS`, linker flag, or executable-name overrides.
+Production builds omit YAML Viewer's diagnostic logs.
+
+Run a debug build and write its diagnostics to `debug.log` with:
+
+```bash
+make debug
+```
+
+Diagnostic messages use feature prefixes such as `[config]`. To reproduce a
+configuration issue while keeping only its messages, run:
+
+```bash
+go run -tags debug . 2>&1 | rg --line-buffered '\[config\]' > config-debug.log
+```
+
+## Build the macOS disk image
+
+Run the macOS packaging target on macOS:
+
+```bash
+make build-macos
+```
+
+The application bundle and disk image are written to `dist/macos` by default.
+
 ## Build the Windows installer
 
 Install [Inno Setup 6](https://jrsoftware.org/isdl.php) and make `ISCC.exe`

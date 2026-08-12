@@ -15,6 +15,8 @@ import textwrap
 from pathlib import Path
 from typing import Sequence
 
+from build import build_environment, production_build_command
+
 
 APP_NAME = "YAML Viewer"
 APP_EXECUTABLE = "yamlviewer.exe"
@@ -336,22 +338,16 @@ def build(args: argparse.Namespace) -> Path:
         write_icon(PROJECT_ROOT / ICON_PNG_NAME, icon_path)
         embed_icon(rsrc=rsrc, icon=icon_path, arch=arch, output=syso_path)
 
-        build_env = os.environ.copy()
-        build_env.update({"CGO_ENABLED": "1", "GOARCH": arch})
+        build_env = build_environment(
+            target_os="windows",
+            target_arch=arch,
+        )
         configure_cgo_environment(build_env)
         run_command(
-            [
-                "go",
-                "build",
-                "-tags",
-                "release",
-                "-trimpath",
-                "-ldflags",
-                "-H=windowsgui -s -w",
-                "-o",
-                str(executable),
-                ".",
-            ],
+            production_build_command(
+                target_os="windows",
+                output=executable,
+            ),
             cwd=PROJECT_ROOT,
             env=build_env,
         )

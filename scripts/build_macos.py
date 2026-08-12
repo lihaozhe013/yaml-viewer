@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 from typing import Sequence
 
+from build import build_environment, production_build_command
+
 
 APP_NAME = "YAML Viewer"
 APP_EXECUTABLE = "yaml-viewer"
@@ -259,20 +261,16 @@ def build(args: argparse.Namespace) -> tuple[Path, Path]:
         staging_dir = temp_dir / APP_NAME
         iconset_dir = temp_dir / f"{APP_NAME}.iconset"
 
-        build_env = os.environ.copy()
-        build_env.update(
-            {"CGO_ENABLED": "1", "GOOS": "darwin", "GOARCH": arch}
+        build_env = build_environment(
+            target_os="darwin",
+            target_arch=arch,
         )
         run_command(
-            [
-                "go",
-                "build",
-                "-trimpath",
-                "-ldflags=-s -w",
-                "-o",
-                str(binary_path),
-                str(PROJECT_ROOT),
-            ],
+            production_build_command(
+                target_os="darwin",
+                output=binary_path,
+                package=str(PROJECT_ROOT),
+            ),
             env=build_env,
         )
 

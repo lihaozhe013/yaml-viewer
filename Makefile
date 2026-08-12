@@ -1,37 +1,30 @@
-GO_FILES := $(shell rg --files -g '*.go')
-BUILD_GOOS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
-RELEASE_LDFLAGS := -s -w
-
-ifeq ($(BUILD_GOOS),windows)
-RELEASE_LDFLAGS := -H=windowsgui -s -w
-endif
-
-.PHONY: run build debug release clean format
+.PHONY: default run debug build build-macos build-windows test format clean
 
 default: run
 
 run:
 	go run .
 
+debug:
+	go run -tags debug . 2> debug.log
+
 build:
-	go build .
+	uv run scripts/build.py
 
-
-release:
-	go build -tags release -trimpath -ldflags "$(RELEASE_LDFLAGS)" .
-
-clean:
-	rm -f yamlviewer yamlviewer.exe
-	rm -rf dist
-
-format:
-	gofmt -w $(GO_FILES)
-
-build-mac:
-	go build -o yamlviewer .
+build-macos:
 	uv run scripts/build_macos.py
-
-.PHONY: build-windows
 
 build-windows:
 	uv run --with Pillow scripts/build_windows.py
+
+test:
+	go test ./...
+	go test -tags debug ./...
+	uv run -m unittest discover -s scripts -p 'test_*.py'
+
+format:
+	go fmt ./...
+
+clean:
+	rm -f yamlviewer yamlviewer.exe debug.log
+	rm -rf dist

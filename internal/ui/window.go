@@ -2,7 +2,6 @@
 package ui
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"yamlviewer/internal/fileio"
 	"yamlviewer/internal/filepicker"
 	"yamlviewer/internal/history"
+	"yamlviewer/internal/logging"
 	"yamlviewer/internal/search"
 )
 
@@ -75,7 +75,7 @@ type Viewer struct {
 func New(application fyne.App) *Viewer {
 	storedConfig, err := appconfig.Load()
 	if err != nil {
-		log.Printf("[config] load failed: %v", err)
+		logging.Debugf("config", "load failed: %v", err)
 	}
 	viewer := &Viewer{
 		app:        application,

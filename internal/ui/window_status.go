@@ -2,10 +2,10 @@ package ui
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	appconfig "yamlviewer/internal/config"
+	"yamlviewer/internal/logging"
 )
 
 func (viewer *Viewer) saveConfig() {
@@ -15,7 +15,7 @@ func (viewer *Viewer) saveConfig() {
 	viewer.config.SearchMode = appconfig.SearchMode(viewer.searchMode)
 	viewer.config.ThemeMode = viewer.themeMode
 	if err := appconfig.Save(viewer.config); err != nil {
-		log.Printf("[config] save failed: %v", err)
+		logging.Debugf("config", "save failed: %v", err)
 	}
 }
 

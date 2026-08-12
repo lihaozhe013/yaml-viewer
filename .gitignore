@@ -4,3 +4,5 @@ yamlviewer
 yamlviewer.exe
 .DS_Store
 dist/
+debug.log
+__pycache__/

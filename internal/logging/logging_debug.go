@@ -4,12 +4,15 @@
 package logging
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
 
-// Configure enables diagnostic logging for development builds.
-func Configure() {
-	log.SetOutput(os.Stderr)
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+var debugLogger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+
+// Debugf writes a feature-prefixed diagnostic message in debug builds.
+func Debugf(feature string, format string, args ...any) {
+	message := fmt.Sprintf("[%s] %s", feature, fmt.Sprintf(format, args...))
+	_ = debugLogger.Output(2, message)
 }

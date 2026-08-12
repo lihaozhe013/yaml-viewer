@@ -6,12 +6,10 @@ import (
 	"fyne.io/fyne/v2/app"
 
 	"yamlviewer/internal/assets"
-	"yamlviewer/internal/logging"
 	"yamlviewer/internal/ui"
 )
 
 func main() {
-	logging.Configure()
 	application := app.NewWithID("yamlviewer")
 	application.SetIcon(assets.AppIcon())
 	viewer := ui.New(application)
