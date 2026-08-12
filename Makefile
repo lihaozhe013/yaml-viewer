@@ -6,7 +6,7 @@ run:
 	go run .
 
 debug:
-	go run -tags debug . 2> debug.log
+	go run -tags debug .
 
 build:
 	uv run scripts/build.py
