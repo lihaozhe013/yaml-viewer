@@ -149,6 +149,19 @@ func (viewer *Viewer) selectTreeItem(id string) {
 	viewer.state.Selected = item.node
 	viewer.updateInspector(item.node)
 	viewer.updateCommands()
+
+	// VS Code-like behaviour: clicking the label of a branch node toggles
+	// expand/collapse so the user does not need to aim at the small arrow.
+	if len(item.children) > 0 {
+		if viewer.tree.IsBranchOpen(id) {
+			viewer.tree.CloseBranch(id)
+			viewer.state.Expanded[id] = false
+		} else {
+			viewer.tree.OpenBranch(id)
+			viewer.state.Expanded[id] = true
+		}
+		viewer.updateExpandCollapseButton()
+	}
 }
 
 func (viewer *Viewer) selectedNode() *yamlmodel.Node {
