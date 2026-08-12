@@ -121,5 +121,8 @@ func (viewer *Viewer) showAbout() {
 		title,
 		description,
 	)
+	sizeHint := canvas.NewRectangle(color.Transparent)
+	sizeHint.SetMinSize(fyne.NewSize(420, 200))
+	content = container.NewStack(sizeHint, content)
 	dialog.NewCustom("About YAML Viewer", "Close", content, viewer.window).Show()
 }
