@@ -1,121 +1,69 @@
 # YAML Viewer
 
-Desktop YAML browser and scalar editor built with Go, Fyne, and
-`go.yaml.in/yaml/v3`.
-It preserves YAML node order and metadata while supporting multi-document files,
-humanized field labels, fuzzy search, node inspection, scalar editing,
-undo/redo, save, reload, drag-and-drop, and recent files.
+YAML Viewer is a cross-platform desktop YAML browser and scalar editor built
+with Go and Fyne.
 
-Run it with:
+It supports multi-document files, fuzzy search, scalar editing, undo/redo,
+save, reload, drag-and-drop, recent files, and native file pickers.
 
-```bash
-go run . path/to/file.yaml
-```
+## Commands
 
-To start with an empty viewer and choose a file from the UI:
+Run the application:
 
 ```bash
-go run .
+make run
 ```
 
-The last successfully opened file is remembered in
-`~/.config/yaml-viewer/config.yaml` and automatically reopened on the next
-launch when no command-line path is provided. A command-line path takes
-precedence; on the first launch, the viewer starts empty.
-
-Search defaults to **Smart Fuzzy** matching. Use the search button or **View →
-Search Settings** to enable **Keyword Match**, which requires every keyword but
-ignores keyword order. For example, `player speed attack` and
-`player attack speed` can both match `player.attack_speed`. Search mode is
-stored in the config and missing fields are filled from the embedded template
-at `internal/config/default.yaml` when the application starts.
-
-Use **View → Dark Mode** to toggle between dark and light themes. The selected
-theme is stored in the same config file and restored on the next launch.
-
-Select a scalar node and choose **Edit Value** to edit one YAML scalar literal.
-The value is parsed as YAML, so quotes, numbers, booleans, and `null` retain
-their YAML meaning. Use **Save** to write the current file or **Save As** to
-choose another path. Unsaved changes are confirmed before opening another file,
-reloading, or closing the window.
-
-The current inspector layout is **Spacious View**. **Compact View** is reserved
-in the View menu for a future layout.
-
-The application uses a bundled blue YAML document icon at runtime. The SVG
-source is in `internal/assets/yaml-viewer.svg`; `Icon.png` and `FyneApp.toml`
-are included for Fyne desktop packaging on macOS, Windows, and Linux.
-
-The Open action uses the host operating system's native file picker: Finder on
-macOS, the Windows file picker on Windows, and GTK on Linux and other Unix-like
-systems. Linux systems need the GTK 3 runtime libraries installed.
-
-## Build and debug
-
-Build a production binary for the current platform with:
-
-```bash
-make build
-```
-
-The Python build helper configures cgo and platform-specific linker flags. The
-Makefile does not require `GOOS`, linker flag, or executable-name overrides.
-Production builds omit YAML Viewer's diagnostic logs.
-
-Run a debug build and write its diagnostics to `debug.log` with:
+Run with diagnostic logs written to `debug.log`:
 
 ```bash
 make debug
 ```
 
-Diagnostic messages use feature prefixes such as `[config]`. To reproduce a
-configuration issue while keeping only its messages, run:
+Build a production binary for the current platform:
 
 ```bash
-go run -tags debug . 2>&1 | rg --line-buffered '\[config\]' > config-debug.log
+make build
 ```
 
-## Build the macOS disk image
-
-Run the macOS packaging target on macOS:
+Build the macOS application bundle and DMG:
 
 ```bash
 make build-macos
 ```
 
-The application bundle and disk image are written to `dist/macos` by default.
+Build the Windows installer:
 
-## Build the Windows installer
-
-Install [Inno Setup 6](https://jrsoftware.org/isdl.php) and make `ISCC.exe`
-available on `PATH`. Then run the Windows packaging target:
-
-```powershell
+```bash
 make build-windows
 ```
 
-The Python packaging script reads the version and build number from
-`FyneApp.toml` and writes `dist/windows/YAML Viewer-1.0.0-Setup.exe`. To
-override the metadata without changing project files, call the script with
-options:
+Run all tests:
 
-```powershell
-uv run --with Pillow scripts/build_windows.py --version 1.2.3 --build 4
+```bash
+make test
 ```
 
-The script also normalizes MinGW GCC paths when the Windows user directory
-contains spaces, avoiding an external-linker failure during the cgo build.
+Format the Go source:
 
-The installer embeds the application icon so the Windows file dialog,
-shortcuts, and Programs and Features entry use the same blue YAML
-document icon as the macOS bundle. `rsrc.exe` is required alongside Inno
-Setup 6; install it with:
-
-```powershell
-go install github.com/akavel/rsrc@latest
+```bash
+make format
 ```
 
-The Makefile target pulls Pillow in through `uv run --with Pillow` so the
-PNG-to-ICO conversion needs no permanent project dependency. `Icon.ico`
-and the generated `rsrc_windows_*.syso` are produced in a temporary
-staging directory and are not written to the repository.
+Remove generated build artifacts:
+
+```bash
+make clean
+```
+
+## Build requirements
+
+- All platforms require Go, Make, and `uv`.
+- macOS packaging uses the standard macOS command-line tools.
+- Windows packaging requires Inno Setup 6 and `rsrc` on `PATH`.
+- Linux requires the GTK 3 development libraries used by Fyne.
+
+Production builds omit YAML Viewer's diagnostic logs. Platform packages are
+written under `dist/`, and their version information comes from `FyneApp.toml`.
+
+User settings are stored in `~/.config/yaml-viewer/config.yaml`.
