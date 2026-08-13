@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 
 	appconfig "yamlviewer/internal/config"
@@ -18,8 +19,9 @@ func (viewer *Viewer) updateCommands() {
 	viewer.reloadItem.Disabled = viewer.current == nil || viewer.saving
 	node := viewer.selectedNode()
 	viewer.editValueItem.Disabled = viewer.current == nil || node == nil || node.Kind != yamlmodel.ScalarNode || viewer.saving
-	viewer.undoItem.Disabled = viewer.current == nil || !viewer.history.CanUndo() || viewer.saving
-	viewer.redoItem.Disabled = viewer.current == nil || !viewer.history.CanRedo() || viewer.saving
+	focusedShortcutable := viewer.focusedShortcutable() != nil
+	viewer.undoItem.Disabled = viewer.saving || (!focusedShortcutable && (viewer.current == nil || !viewer.history.CanUndo()))
+	viewer.redoItem.Disabled = viewer.saving || (!focusedShortcutable && (viewer.current == nil || !viewer.history.CanRedo()))
 	viewer.spaciousItem.Checked = viewer.viewMode == ViewModeSpacious
 	viewer.compactItem.Checked = viewer.viewMode == ViewModeCompact
 	viewer.compactItem.Disabled = true
@@ -27,6 +29,26 @@ func (viewer *Viewer) updateCommands() {
 	viewer.updateSearchControls()
 	viewer.updateExpandCollapseButton()
 	viewer.mainMenu.Refresh()
+}
+
+func (viewer *Viewer) focusedShortcutable() fyne.Shortcutable {
+	if viewer.window == nil || viewer.window.Canvas() == nil {
+		return nil
+	}
+	shortcutable, ok := viewer.window.Canvas().Focused().(fyne.Shortcutable)
+	if !ok {
+		return nil
+	}
+	return shortcutable
+}
+
+func (viewer *Viewer) dispatchFocusedShortcut(shortcut fyne.Shortcut) bool {
+	focused := viewer.focusedShortcutable()
+	if focused == nil {
+		return false
+	}
+	focused.TypedShortcut(shortcut)
+	return true
 }
 
 func (viewer *Viewer) updateSearchControls() {

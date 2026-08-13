@@ -3,9 +3,24 @@ package ui
 import (
 	"fmt"
 
+	"fyne.io/fyne/v2"
 	"yamlviewer/internal/search"
 	"yamlviewer/internal/yamlmodel"
 )
+
+func (viewer *Viewer) undoCommand() {
+	if viewer.dispatchFocusedShortcut(&fyne.ShortcutUndo{}) {
+		return
+	}
+	viewer.undo()
+}
+
+func (viewer *Viewer) redoCommand() {
+	if viewer.dispatchFocusedShortcut(&fyne.ShortcutRedo{}) {
+		return
+	}
+	viewer.redo()
+}
 
 func (viewer *Viewer) undo() {
 	if viewer.current == nil || viewer.saving {

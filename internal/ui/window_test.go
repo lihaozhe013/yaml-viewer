@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
@@ -30,10 +31,13 @@ func TestBuildMenusAndDefaultViewMode(t *testing.T) {
 	if len(viewer.mainMenu.Items) != 4 {
 		t.Fatalf("main menu contains %d menus, want 4", len(viewer.mainMenu.Items))
 	}
-	for index, want := range []string{"File", "Edit", "View", "About"} {
+	for index, want := range []string{"File", "Edit", "View", "Help"} {
 		if viewer.mainMenu.Items[index].Label != want {
 			t.Errorf("menu %d = %q, want %q", index, viewer.mainMenu.Items[index].Label, want)
 		}
+	}
+	if len(viewer.helpMenu.Items) != 1 || viewer.helpMenu.Items[0].Label != "About" {
+		t.Fatal("Help menu should expose the standard About label")
 	}
 	if !viewer.saveItem.Disabled || !viewer.saveAsItem.Disabled || !viewer.editValueItem.Disabled {
 		t.Fatal("empty viewer should disable save and edit commands")
@@ -54,7 +58,21 @@ func TestBuildMenusAndDefaultViewMode(t *testing.T) {
 		t.Fatal("expand/collapse button should be disabled without a selected branch")
 	}
 	if len(viewer.viewMenu.Items) != 5 || viewer.viewMenu.Items[3] != viewer.themeItem || viewer.viewMenu.Items[4] != viewer.searchSettingsItem {
-		t.Fatal("view menu should expose the theme toggle before search settings")
+		t.Fatal("view menu should expose the theme toggle before settings")
+	}
+	if viewer.searchSettingsItem.Label != "Settings…" {
+		t.Fatalf("settings menu label = %q", viewer.searchSettingsItem.Label)
+	}
+	if viewer.searchSettingsItem.Shortcut == nil {
+		t.Fatal("settings menu item has no shortcut")
+	}
+	if len(viewer.fileMenu.Items) != 4 {
+		t.Fatalf("file menu contains %d items, want 4 without a duplicate Quit", len(viewer.fileMenu.Items))
+	}
+	for _, item := range []*fyne.MenuItem{viewer.undoItem, viewer.redoItem, viewer.cutItem, viewer.copyItem, viewer.pasteItem, viewer.selectAllItem} {
+		if item.Shortcut == nil {
+			t.Fatalf("edit menu item %q has no shortcut", item.Label)
+		}
 	}
 	if viewer.themeItem.Checked {
 		t.Fatal("light mode should leave the dark mode toggle unchecked")

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -71,7 +72,7 @@ func (viewer *Viewer) setSearchMode(mode search.Mode) {
 	viewer.scheduleSearchNow()
 }
 
-func (viewer *Viewer) showSearchSettings() {
+func (viewer *Viewer) showSettings() {
 	options := []string{"Smart Fuzzy", "Keyword Match"}
 	radio := widget.NewRadioGroup(options, nil)
 	if viewer.searchMode == search.ModeKeyword {
@@ -93,17 +94,35 @@ func (viewer *Viewer) showSearchSettings() {
 	smartDescription.Wrapping = fyne.TextWrapWord
 	keywordDescription := widget.NewLabel("Keyword Match requires every keyword, ignores their order, and matches complete normalized keywords.")
 	keywordDescription.Wrapping = fyne.TextWrapWord
+	themeOptions := []string{"Light", "Dark"}
+	themeRadio := widget.NewRadioGroup(themeOptions, nil)
+	if viewer.themeMode == appconfig.ThemeModeDark {
+		themeRadio.SetSelected("Dark")
+	} else {
+		themeRadio.SetSelected("Light")
+	}
+	themeRadio.OnChanged = func(option string) {
+		if option == "Dark" {
+			viewer.setThemeMode(appconfig.ThemeModeDark)
+			return
+		}
+		viewer.setThemeMode(appconfig.ThemeModeLight)
+	}
+	appearance := widget.NewLabelWithStyle("Appearance", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	content := container.NewVBox(
 		description,
 		radio,
 		widget.NewSeparator(),
 		smartDescription,
 		keywordDescription,
+		widget.NewSeparator(),
+		appearance,
+		themeRadio,
 	)
 	sizeHint := canvas.NewRectangle(color.Transparent)
-	sizeHint.SetMinSize(fyne.NewSize(520, 220))
+	sizeHint.SetMinSize(fyne.NewSize(520, 280))
 	content = container.NewStack(sizeHint, content)
-	dialog.NewCustom("Search Settings", "Close", content, viewer.window).Show()
+	dialog.NewCustom("Settings", "Close", content, viewer.window).Show()
 }
 
 func (viewer *Viewer) showAbout() {
@@ -115,14 +134,23 @@ func (viewer *Viewer) showAbout() {
 	description := widget.NewLabel("A generic YAML browser and scalar editor built with Go and Fyne.")
 	description.Alignment = fyne.TextAlignCenter
 	description.Wrapping = fyne.TextWrapWord
+	metadata := viewer.app.Metadata()
+	metadataLabels := make([]fyne.CanvasObject, 0, 2)
+	if metadata.Version != "" {
+		metadataLabels = append(metadataLabels, widget.NewLabel("Version "+metadata.Version))
+	}
+	if metadata.Build > 0 {
+		metadataLabels = append(metadataLabels, widget.NewLabel(fmt.Sprintf("Build %d", metadata.Build)))
+	}
 
 	content := container.NewVBox(
 		container.NewCenter(icon),
 		title,
 		description,
+		container.NewCenter(container.NewHBox(metadataLabels...)),
 	)
 	sizeHint := canvas.NewRectangle(color.Transparent)
-	sizeHint.SetMinSize(fyne.NewSize(420, 200))
+	sizeHint.SetMinSize(fyne.NewSize(420, 230))
 	content = container.NewStack(sizeHint, content)
 	dialog.NewCustom("About YAML Viewer", "Close", content, viewer.window).Show()
 }

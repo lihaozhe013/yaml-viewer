@@ -15,8 +15,9 @@ func (viewer *Viewer) build() {
 	viewer.searchEntry.SetPlaceHolder("Search fields, paths, values, tags, comments…")
 	viewer.searchEntry.OnChanged = func(_ string) {
 		viewer.scheduleSearch()
+		viewer.updateCommands()
 	}
-	viewer.searchSettingsButton = widget.NewButton(viewer.searchModeLabel(), viewer.showSearchSettings)
+	viewer.searchSettingsButton = widget.NewButton(viewer.searchModeLabel(), viewer.showSettings)
 
 	openButton := widget.NewButton("Open", viewer.openDialog)
 	reloadButton := widget.NewButton("Reload", viewer.reload)
@@ -86,55 +87,50 @@ func (viewer *Viewer) build() {
 }
 
 func (viewer *Viewer) buildMenus() {
-	modifier := fyne.KeyModifierShortcutDefault
-	shortcut := func(key fyne.KeyName, extra fyne.KeyModifier) *desktop.CustomShortcut {
-		return &desktop.CustomShortcut{KeyName: key, Modifier: modifier | extra}
-	}
-
-	openItem := fyne.NewMenuItem("Open", viewer.openDialog)
-	openItem.Shortcut = shortcut(fyne.KeyO, 0)
+	openItem := fyne.NewMenuItem("Open…", viewer.openDialog)
+	openItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyO, Modifier: fyne.KeyModifierShortcutDefault}
 	viewer.saveItem = fyne.NewMenuItem("Save", viewer.save)
-	viewer.saveItem.Shortcut = shortcut(fyne.KeyS, 0)
-	viewer.saveAsItem = fyne.NewMenuItem("Save As", viewer.saveAs)
-	viewer.saveAsItem.Shortcut = shortcut(fyne.KeyS, fyne.KeyModifierShift)
+	viewer.saveItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierShortcutDefault}
+	viewer.saveAsItem = fyne.NewMenuItem("Save As…", viewer.saveAs)
+	viewer.saveAsItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierShortcutDefault | fyne.KeyModifierShift}
 	viewer.reloadItem = fyne.NewMenuItem("Reload", viewer.reload)
-	viewer.reloadItem.Shortcut = shortcut(fyne.KeyR, 0)
-	quitItem := fyne.NewMenuItem("Quit", viewer.requestClose)
-	viewer.fileMenu = fyne.NewMenu("File", openItem, viewer.saveItem, viewer.saveAsItem,
-		viewer.reloadItem, fyne.NewMenuItemSeparator(), quitItem)
+	viewer.reloadItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierShortcutDefault}
+	viewer.fileMenu = fyne.NewMenu("File", openItem, viewer.saveItem, viewer.saveAsItem, viewer.reloadItem)
 
+	viewer.undoItem = fyne.NewMenuItem("Undo", viewer.undoCommand)
+	viewer.undoItem.Shortcut = &fyne.ShortcutUndo{}
+	viewer.redoItem = fyne.NewMenuItem("Redo", viewer.redoCommand)
+	viewer.redoItem.Shortcut = &fyne.ShortcutRedo{}
+	cutShortcut := &fyne.ShortcutCut{Clipboard: viewer.app.Clipboard()}
+	viewer.cutItem = fyne.NewMenuItem("Cut", func() { viewer.dispatchFocusedShortcut(cutShortcut) })
+	viewer.cutItem.Shortcut = cutShortcut
+	copyShortcut := &fyne.ShortcutCopy{Clipboard: viewer.app.Clipboard()}
+	viewer.copyItem = fyne.NewMenuItem("Copy", func() { viewer.dispatchFocusedShortcut(copyShortcut) })
+	viewer.copyItem.Shortcut = copyShortcut
+	pasteShortcut := &fyne.ShortcutPaste{Clipboard: viewer.app.Clipboard()}
+	viewer.pasteItem = fyne.NewMenuItem("Paste", func() { viewer.dispatchFocusedShortcut(pasteShortcut) })
+	viewer.pasteItem.Shortcut = pasteShortcut
+	selectAllShortcut := &fyne.ShortcutSelectAll{}
+	viewer.selectAllItem = fyne.NewMenuItem("Select All", func() { viewer.dispatchFocusedShortcut(selectAllShortcut) })
+	viewer.selectAllItem.Shortcut = selectAllShortcut
 	viewer.editValueItem = fyne.NewMenuItem("Edit Value", viewer.beginEditValue)
-	viewer.editValueItem.Shortcut = shortcut(fyne.KeyE, 0)
-	viewer.undoItem = fyne.NewMenuItem("Undo", viewer.undo)
-	viewer.undoItem.Shortcut = shortcut(fyne.KeyZ, 0)
-	viewer.redoItem = fyne.NewMenuItem("Redo", viewer.redo)
-	viewer.redoItem.Shortcut = shortcut(fyne.KeyY, 0)
-	viewer.editMenu = fyne.NewMenu("Edit", viewer.editValueItem,
-		fyne.NewMenuItemSeparator(), viewer.undoItem, viewer.redoItem)
+	viewer.editValueItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyE, Modifier: fyne.KeyModifierShortcutDefault}
+	viewer.editMenu = fyne.NewMenu("Edit", viewer.undoItem, viewer.redoItem,
+		fyne.NewMenuItemSeparator(), viewer.cutItem, viewer.copyItem, viewer.pasteItem, viewer.selectAllItem,
+		fyne.NewMenuItemSeparator(), viewer.editValueItem)
 
 	viewer.spaciousItem = fyne.NewMenuItem("Spacious View", func() { viewer.setViewMode(ViewModeSpacious) })
 	viewer.compactItem = fyne.NewMenuItem("Compact View", func() { viewer.setViewMode(ViewModeCompact) })
 	viewer.themeItem = fyne.NewMenuItem("Dark Mode", viewer.toggleThemeMode)
-	viewer.searchSettingsItem = fyne.NewMenuItem("Search Settings…", viewer.showSearchSettings)
+	viewer.searchSettingsItem = fyne.NewMenuItem("Settings…", viewer.showSettings)
+	viewer.searchSettingsItem.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyComma, Modifier: fyne.KeyModifierShortcutDefault}
 	viewer.viewMenu = fyne.NewMenu("View", viewer.spaciousItem, viewer.compactItem,
 		fyne.NewMenuItemSeparator(), viewer.themeItem, viewer.searchSettingsItem)
 
-	aboutItem := fyne.NewMenuItem("About YAML Viewer", viewer.showAbout)
-	viewer.aboutMenu = fyne.NewMenu("About", aboutItem)
-	viewer.mainMenu = fyne.NewMainMenu(viewer.fileMenu, viewer.editMenu, viewer.viewMenu, viewer.aboutMenu)
+	aboutItem := fyne.NewMenuItem("About", viewer.showAbout)
+	viewer.helpMenu = fyne.NewMenu("Help", aboutItem)
+	viewer.mainMenu = fyne.NewMainMenu(viewer.fileMenu, viewer.editMenu, viewer.viewMenu, viewer.helpMenu)
 	viewer.window.SetMainMenu(viewer.mainMenu)
-
-	for _, item := range []*fyne.MenuItem{openItem, viewer.saveItem, viewer.saveAsItem, viewer.reloadItem,
-		viewer.editValueItem, viewer.undoItem, viewer.redoItem} {
-		if item.Shortcut != nil {
-			menuItem := item
-			viewer.window.Canvas().AddShortcut(item.Shortcut, func(shortcut fyne.Shortcut) {
-				if menuItem.Action != nil {
-					menuItem.Action()
-				}
-			})
-		}
-	}
 }
 
 func (viewer *Viewer) registerShortcuts() {
@@ -145,6 +141,11 @@ func (viewer *Viewer) registerShortcuts() {
 	})
 	canvas.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEscape}, func(fyne.Shortcut) {
 		viewer.searchEntry.SetText("")
+	})
+	// Keep the common Cmd/Ctrl+Shift+Z redo binding available alongside
+	// Fyne's platform-neutral Cmd/Ctrl+Y shortcut.
+	canvas.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyZ, Modifier: modifier | fyne.KeyModifierShift}, func(fyne.Shortcut) {
+		viewer.redoCommand()
 	})
 }
 

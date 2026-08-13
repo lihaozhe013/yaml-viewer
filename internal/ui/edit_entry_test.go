@@ -93,3 +93,40 @@ func TestEditorActionButtonDoesNotCancelOnClick(t *testing.T) {
 		t.Fatal("editor action button incorrectly cancelled editing")
 	}
 }
+
+func TestEditMenuCommandsDispatchToFocusedEntry(t *testing.T) {
+	application := test.NewApp()
+	defer application.Quit()
+
+	viewer := New(application)
+	entry := viewer.searchEntry
+	entry.SetText("")
+	viewer.window.Canvas().Focus(entry)
+	entry.TypedRune('a')
+	entry.TypedRune('b')
+	entry.TypedRune('c')
+	entry.TypedRune('d')
+
+	viewer.undoItem.Action()
+	if entry.Text != "" {
+		t.Fatalf("focused entry after undo = %q, want empty", entry.Text)
+	}
+	viewer.redoItem.Action()
+	if entry.Text != "abcd" {
+		t.Fatalf("focused entry after redo = %q, want %q", entry.Text, "abcd")
+	}
+
+	viewer.selectAllItem.Action()
+	viewer.copyItem.Action()
+	if got := application.Clipboard().Content(); got != "abcd" {
+		t.Fatalf("clipboard content = %q, want %q", got, "abcd")
+	}
+	viewer.cutItem.Action()
+	if entry.Text != "" {
+		t.Fatalf("focused entry after cut = %q, want empty", entry.Text)
+	}
+	viewer.pasteItem.Action()
+	if entry.Text != "abcd" {
+		t.Fatalf("focused entry after paste = %q, want %q", entry.Text, "abcd")
+	}
+}

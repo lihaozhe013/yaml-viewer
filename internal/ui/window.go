@@ -55,13 +55,17 @@ type Viewer struct {
 	fileMenu             *fyne.Menu
 	editMenu             *fyne.Menu
 	viewMenu             *fyne.Menu
-	aboutMenu            *fyne.Menu
+	helpMenu             *fyne.Menu
 	saveItem             *fyne.MenuItem
 	saveAsItem           *fyne.MenuItem
 	reloadItem           *fyne.MenuItem
 	editValueItem        *fyne.MenuItem
 	undoItem             *fyne.MenuItem
 	redoItem             *fyne.MenuItem
+	cutItem              *fyne.MenuItem
+	copyItem             *fyne.MenuItem
+	pasteItem            *fyne.MenuItem
+	selectAllItem        *fyne.MenuItem
 	spaciousItem         *fyne.MenuItem
 	compactItem          *fyne.MenuItem
 	themeItem            *fyne.MenuItem
