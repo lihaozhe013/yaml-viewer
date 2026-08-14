@@ -3,11 +3,35 @@ package ui
 import (
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"yamlviewer/internal/yamlmodel"
 )
+
+func TestPaddedTextGridAddsContentInset(t *testing.T) {
+	grid := widget.NewTextGridFromString("30")
+	scroll, ok := paddedTextGrid(grid).(*container.Scroll)
+	if !ok {
+		t.Fatal("padded text grid is not scrollable")
+	}
+	padded, ok := scroll.Content.(*fyne.Container)
+	if !ok {
+		t.Fatal("scroll content is not a padded container")
+	}
+	if _, ok := padded.Layout.(layout.CustomPaddedLayout); !ok {
+		t.Fatalf("scroll content layout = %T, want custom padded layout", padded.Layout)
+	}
+
+	padded.Resize(fyne.NewSize(200, 80))
+	if got, want := grid.Position(), fyne.NewSquareOffsetPos(theme.Padding()*2); got != want {
+		t.Fatalf("grid position = %v, want %v", got, want)
+	}
+}
 
 func TestPaletteForLightAndDarkThemes(t *testing.T) {
 	light := paletteFor(theme.VariantLight)

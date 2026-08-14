@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -115,7 +116,7 @@ func valueContent(viewer *Viewer, node *yamlmodel.Node, palette detailPalette) f
 	gridBackground := canvas.NewRectangle(palette.codeBackground)
 	gridBackground.CornerRadius = 6
 	gridBackground.SetMinSize(fyne.NewSize(1, 72))
-	var code fyne.CanvasObject = container.NewStack(gridBackground, container.NewScroll(grid))
+	var code fyne.CanvasObject = container.NewStack(gridBackground, paddedTextGrid(grid))
 	if node.Kind == yamlmodel.ScalarNode {
 		code = newTappableValue(code, viewer.beginEditValue)
 	}
@@ -279,8 +280,14 @@ func readOnlyText(value string, palette detailPalette, errorStyle bool) fyne.Can
 	fill := canvas.NewRectangle(background)
 	fill.CornerRadius = 6
 	fill.SetMinSize(fyne.NewSize(1, 56))
-	preview := container.NewStack(fill, container.NewScroll(grid))
+	preview := container.NewStack(fill, paddedTextGrid(grid))
 	return preview
+}
+
+func paddedTextGrid(grid *widget.TextGrid) fyne.CanvasObject {
+	padding := theme.Padding() * 2
+	content := container.New(layout.NewCustomPaddedLayout(padding, padding, padding, padding), grid)
+	return container.NewScroll(content)
 }
 
 func valueForDisplay(node *yamlmodel.Node) string {
