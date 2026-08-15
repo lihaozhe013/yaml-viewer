@@ -199,3 +199,69 @@ func TestSavePreservesUnknownFields(t *testing.T) {
 		t.Fatalf("saved config lost values: %s", text)
 	}
 }
+
+func TestLoadCreatesConfigWithFormatDefaults(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	value, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Indent != 2 {
+		t.Fatalf("Indent = %d, want 2", value.Indent)
+	}
+	if !value.SortKeys {
+		t.Fatalf("SortKeys = false, want true")
+	}
+}
+
+func TestLoadPreservesFormatSettings(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path, err := Path()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("indent: 4\nsort_keys: false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Indent != 4 {
+		t.Fatalf("Indent = %d, want 4", value.Indent)
+	}
+	if value.SortKeys {
+		t.Fatalf("SortKeys = true, want false")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "indent: 4") || !strings.Contains(text, "sort_keys: false") {
+		t.Fatalf("saved config lost format settings: %s", text)
+	}
+}
+
+func TestNormalizeIndentRejectsInvalidValues(t *testing.T) {
+	if NormalizeIndent(0) != 2 {
+		t.Fatal("NormalizeIndent(0) should return 2")
+	}
+	if NormalizeIndent(1) != 2 {
+		t.Fatal("NormalizeIndent(1) should return 2")
+	}
+	if NormalizeIndent(3) != 2 {
+		t.Fatal("NormalizeIndent(3) should return 2")
+	}
+	if NormalizeIndent(2) != 2 {
+		t.Fatal("NormalizeIndent(2) should return 2")
+	}
+	if NormalizeIndent(4) != 4 {
+		t.Fatal("NormalizeIndent(4) should return 4")
+	}
+}

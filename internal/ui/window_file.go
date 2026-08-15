@@ -11,6 +11,7 @@ import (
 
 	"yamlviewer/internal/fileio"
 	"yamlviewer/internal/filepicker"
+	"yamlviewer/internal/yamlmodel"
 )
 
 // OpenPath opens a path asynchronously. It is exported for command-line
@@ -157,7 +158,10 @@ func (viewer *Viewer) saveToPath(path string, updatePath bool, onSuccess func())
 		viewer.showError(err)
 		return
 	}
-	data, err := viewer.current.Model.Marshal()
+	data, err := viewer.current.Model.MarshalWithOptions(yamlmodel.FormatOptions{
+		Indent:   viewer.formatIndent,
+		SortKeys: viewer.formatSortKeys,
+	})
 	if err != nil {
 		viewer.showError(err)
 		return

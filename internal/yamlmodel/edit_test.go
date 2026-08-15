@@ -104,3 +104,66 @@ func TestMarshalPreservesEmptyDocuments(t *testing.T) {
 		t.Fatalf("decoded empty documents = %#v", decoded.Documents)
 	}
 }
+
+func TestMarshalWithOptionsSortsKeys(t *testing.T) {
+	file, err := Decode([]byte("zebra: 1\nalpha: 2\nbeta: 3\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := file.MarshalWithOptions(FormatOptions{Indent: 2, SortKeys: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(encoded)
+	alphaIdx := strings.Index(text, "alpha:")
+	betaIdx := strings.Index(text, "beta:")
+	zebraIdx := strings.Index(text, "zebra:")
+	if alphaIdx < 0 || betaIdx < 0 || zebraIdx < 0 {
+		t.Fatalf("missing keys in output:\n%s", text)
+	}
+	if alphaIdx > betaIdx || betaIdx > zebraIdx {
+		t.Fatalf("keys not sorted: alpha@%d beta@%d zebra@%d\n%s", alphaIdx, betaIdx, zebraIdx, text)
+	}
+}
+
+func TestMarshalWithOptionsPreservesOriginalOrder(t *testing.T) {
+	file, err := Decode([]byte("zebra: 1\nalpha: 2\nbeta: 3\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := file.MarshalWithOptions(FormatOptions{Indent: 2, SortKeys: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(encoded)
+	zebraIdx := strings.Index(text, "zebra:")
+	alphaIdx := strings.Index(text, "alpha:")
+	betaIdx := strings.Index(text, "beta:")
+	if zebraIdx < 0 || alphaIdx < 0 || betaIdx < 0 {
+		t.Fatalf("missing keys in output:\n%s", text)
+	}
+	if zebraIdx > alphaIdx || alphaIdx > betaIdx {
+		t.Fatalf("original order not preserved: zebra@%d alpha@%d beta@%d\n%s", zebraIdx, alphaIdx, betaIdx, text)
+	}
+}
+
+func TestMarshalWithOptionsUsesIndent(t *testing.T) {
+	file, err := Decode([]byte("parent:\n  child: value\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded2, err := file.MarshalWithOptions(FormatOptions{Indent: 2, SortKeys: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded4, err := file.MarshalWithOptions(FormatOptions{Indent: 4, SortKeys: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded2) == string(encoded4) {
+		t.Fatalf("2-space and 4-space encoding should differ:\n2: %s\n4: %s", encoded2, encoded4)
+	}
+	if !strings.Contains(string(encoded4), "    child:") {
+		t.Fatalf("4-space indent not found:\n%s", encoded4)
+	}
+}

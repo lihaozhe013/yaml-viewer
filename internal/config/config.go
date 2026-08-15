@@ -43,6 +43,8 @@ type Config struct {
 	LastOpenedFile string     `yaml:"last_opened_file"`
 	SearchMode     SearchMode `yaml:"search_mode"`
 	ThemeMode      ThemeMode  `yaml:"theme"`
+	Indent         int        `yaml:"indent"`
+	SortKeys       bool       `yaml:"sort_keys"`
 
 	raw           map[string]any
 	invalidSource bool
@@ -71,6 +73,17 @@ func NormalizeThemeMode(value ThemeMode) ThemeMode {
 		return ThemeModeLight
 	default:
 		return ThemeModeLight
+	}
+}
+
+// NormalizeIndent returns a supported indent width and falls back to 2 spaces
+// when a config value is missing or invalid.
+func NormalizeIndent(value int) int {
+	switch value {
+	case 2, 4:
+		return value
+	default:
+		return 2
 	}
 }
 
@@ -194,6 +207,8 @@ func (value Config) MarshalYAML() (any, error) {
 	fields["last_opened_file"] = value.LastOpenedFile
 	fields["search_mode"] = NormalizeSearchMode(value.SearchMode)
 	fields["theme"] = NormalizeThemeMode(value.ThemeMode)
+	fields["indent"] = NormalizeIndent(value.Indent)
+	fields["sort_keys"] = value.SortKeys
 	return fields, nil
 }
 
@@ -213,6 +228,22 @@ func configFromMap(fields map[string]any) Config {
 	}
 	if value.ThemeMode == "" {
 		value.ThemeMode = ThemeModeLight
+	}
+	if raw, ok := fields["indent"]; ok {
+		switch v := raw.(type) {
+		case int:
+			value.Indent = NormalizeIndent(v)
+		case float64:
+			value.Indent = NormalizeIndent(int(v))
+		}
+	}
+	if value.Indent == 0 {
+		value.Indent = 2
+	}
+	if raw, ok := fields["sort_keys"].(bool); ok {
+		value.SortKeys = raw
+	} else {
+		value.SortKeys = true
 	}
 	return value
 }
@@ -242,6 +273,24 @@ func normalizeKnownFields(fields, fallback map[string]any) (map[string]any, bool
 	if raw, ok := fallback["theme"].(string); ok && NormalizeThemeMode(ThemeMode(raw)) == ThemeMode(raw) {
 		defaultTheme = raw
 	}
+	defaultIndent := 2
+	if raw, ok := fallback["indent"]; ok {
+		switch v := raw.(type) {
+		case int:
+			if NormalizeIndent(v) == v {
+				defaultIndent = v
+			}
+		case float64:
+			iv := int(v)
+			if NormalizeIndent(iv) == iv {
+				defaultIndent = iv
+			}
+		}
+	}
+	defaultSortKeys := true
+	if raw, ok := fallback["sort_keys"].(bool); ok {
+		defaultSortKeys = raw
+	}
 	if raw, ok := fields["last_opened_file"]; !ok {
 		fields["last_opened_file"] = defaultPath
 		changed = true
@@ -265,6 +314,35 @@ func normalizeKnownFields(fields, fallback map[string]any) (map[string]any, bool
 		fields["theme"] = defaultTheme
 		changed = true
 	}
+
+	if raw, ok := fields["indent"]; !ok {
+		fields["indent"] = defaultIndent
+		changed = true
+	} else {
+		var indent int
+		switch v := raw.(type) {
+		case int:
+			indent = v
+		case float64:
+			indent = int(v)
+		default:
+			fields["indent"] = defaultIndent
+			changed = true
+		}
+		if NormalizeIndent(indent) != indent {
+			fields["indent"] = defaultIndent
+			changed = true
+		}
+	}
+
+	if raw, ok := fields["sort_keys"]; !ok {
+		fields["sort_keys"] = defaultSortKeys
+		changed = true
+	} else if _, ok := raw.(bool); !ok {
+		fields["sort_keys"] = defaultSortKeys
+		changed = true
+	}
+
 	return fields, changed
 }
 

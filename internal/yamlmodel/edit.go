@@ -5,10 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
+
+// FormatOptions controls how YAML is serialized when saving.
+type FormatOptions struct {
+	// Indent is the number of spaces per indentation level (2 or 4).
+	Indent int
+	// SortKeys causes mapping keys to be serialized in alphabetical order.
+	SortKeys bool
+}
 
 // ScalarState is the editable portion of a scalar yaml.v3 node. Comments,
 // anchors, identity, and parent relationships are intentionally not part of a
@@ -73,8 +82,19 @@ func (file *File) ApplyScalarChange(change ScalarChange, forward bool) error {
 // Marshal encodes the retained YAML documents, including edits made through
 // this package, as a YAML stream.
 func (file *File) Marshal() ([]byte, error) {
+	return file.MarshalWithOptions(FormatOptions{Indent: 2})
+}
+
+// MarshalWithOptions encodes the retained YAML documents using the given
+// format options for indentation and key sorting.
+func (file *File) MarshalWithOptions(opts FormatOptions) ([]byte, error) {
 	if file == nil || len(file.Documents) == 0 {
 		return nil, nil
+	}
+
+	indent := opts.Indent
+	if indent < 2 || indent > 4 {
+		indent = 2
 	}
 
 	var output bytes.Buffer
@@ -91,8 +111,12 @@ func (file *File) Marshal() ([]byte, error) {
 			}
 			continue
 		}
+		if opts.SortKeys {
+			sortMappingKeys(document.Source)
+		}
 		var encoded bytes.Buffer
 		encoder := yaml.NewEncoder(&encoded)
+		encoder.SetIndent(indent)
 		if err := encoder.Encode(document.Source); err != nil {
 			_ = encoder.Close()
 			return nil, fmt.Errorf("encode document %d: %w", document.Number, err)
@@ -103,6 +127,35 @@ func (file *File) Marshal() ([]byte, error) {
 		output.Write(encoded.Bytes())
 	}
 	return output.Bytes(), nil
+}
+
+// sortMappingKeys recursively sorts mapping node keys in-place.
+func sortMappingKeys(node *yaml.Node) {
+	if node == nil {
+		return
+	}
+	if node.Kind == yaml.MappingNode {
+		// Pair key/value nodes: Content[0]=key0, Content[1]=val0, Content[2]=key1, ...
+		type pair struct {
+			key   *yaml.Node
+			value *yaml.Node
+		}
+		pairs := make([]pair, 0, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			pairs = append(pairs, pair{key: node.Content[i], value: node.Content[i+1]})
+		}
+		sort.Slice(pairs, func(i, j int) bool {
+			return pairs[i].key.Value < pairs[j].key.Value
+		})
+		sorted := make([]*yaml.Node, 0, len(node.Content))
+		for _, p := range pairs {
+			sorted = append(sorted, p.key, p.value)
+		}
+		node.Content = sorted
+	}
+	for _, child := range node.Content {
+		sortMappingKeys(child)
+	}
 }
 
 func parseScalarLiteral(literal string) (*yaml.Node, error) {

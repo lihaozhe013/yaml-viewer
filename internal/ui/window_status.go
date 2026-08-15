@@ -14,6 +14,8 @@ func (viewer *Viewer) saveConfig() {
 	}
 	viewer.config.SearchMode = appconfig.SearchMode(viewer.searchMode)
 	viewer.config.ThemeMode = viewer.themeMode
+	viewer.config.Indent = viewer.formatIndent
+	viewer.config.SortKeys = viewer.formatSortKeys
 	if err := appconfig.Save(viewer.config); err != nil {
 		logging.Debugf("config", "save failed: %v", err)
 	}

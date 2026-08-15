@@ -108,6 +108,29 @@ func (viewer *Viewer) showSettings() {
 		}
 		viewer.setThemeMode(appconfig.ThemeModeLight)
 	}
+
+	// YAML format settings
+	formatTitle := widget.NewLabelWithStyle("YAML Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	indentLabel := widget.NewLabel("Indentation:")
+	indentOptions := []string{"2 spaces", "4 spaces"}
+	indentSelect := widget.NewSelect(indentOptions, nil)
+	if viewer.formatIndent == 4 {
+		indentSelect.SetSelected("4 spaces")
+	} else {
+		indentSelect.SetSelected("2 spaces")
+	}
+	indentSelect.OnChanged = func(option string) {
+		if option == "4 spaces" {
+			viewer.formatIndent = 4
+		} else {
+			viewer.formatIndent = 2
+		}
+	}
+	sortCheck := widget.NewCheck("Sort mapping keys alphabetically when saving", func(checked bool) {
+		viewer.formatSortKeys = checked
+	})
+	sortCheck.SetChecked(viewer.formatSortKeys)
+
 	appearance := widget.NewLabelWithStyle("Appearance", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	content := container.NewVBox(
 		description,
@@ -116,11 +139,15 @@ func (viewer *Viewer) showSettings() {
 		smartDescription,
 		keywordDescription,
 		widget.NewSeparator(),
+		formatTitle,
+		container.NewHBox(indentLabel, indentSelect),
+		sortCheck,
+		widget.NewSeparator(),
 		appearance,
 		themeRadio,
 	)
 	sizeHint := canvas.NewRectangle(color.Transparent)
-	sizeHint.SetMinSize(fyne.NewSize(520, 280))
+	sizeHint.SetMinSize(fyne.NewSize(520, 360))
 	content = container.NewStack(sizeHint, content)
 	dialog.NewCustom("Settings", "Close", content, viewer.window).Show()
 }

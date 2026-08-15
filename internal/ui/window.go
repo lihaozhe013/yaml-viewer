@@ -32,6 +32,9 @@ type Viewer struct {
 	themeMode  appconfig.ThemeMode
 	searchMode search.Mode
 
+	formatIndent   int
+	formatSortKeys bool
+
 	current *fileio.LoadedFile
 	items   map[string]treeItem
 	visible map[string]bool
@@ -82,17 +85,19 @@ func New(application fyne.App) *Viewer {
 		logging.Debugf("config", "load failed: %v", err)
 	}
 	viewer := &Viewer{
-		app:        application,
-		state:      appstate.New(),
-		recent:     fileio.NewRecentFiles(10),
-		picker:     filepicker.NewNative(),
-		config:     storedConfig,
-		history:    history.New(1000),
-		viewMode:   ViewModeSpacious,
-		themeMode:  appconfig.NormalizeThemeMode(storedConfig.ThemeMode),
-		searchMode: search.NormalizeMode(search.Mode(storedConfig.SearchMode)),
-		items:      make(map[string]treeItem),
-		visible:    make(map[string]bool),
+		app:            application,
+		state:          appstate.New(),
+		recent:         fileio.NewRecentFiles(10),
+		picker:         filepicker.NewNative(),
+		config:         storedConfig,
+		history:        history.New(1000),
+		viewMode:       ViewModeSpacious,
+		themeMode:      appconfig.NormalizeThemeMode(storedConfig.ThemeMode),
+		searchMode:     search.NormalizeMode(search.Mode(storedConfig.SearchMode)),
+		formatIndent:   appconfig.NormalizeIndent(storedConfig.Indent),
+		formatSortKeys: storedConfig.SortKeys,
+		items:          make(map[string]treeItem),
+		visible:        make(map[string]bool),
 	}
 	viewer.setThemeMode(viewer.themeMode)
 	if storedConfig.LastOpenedFile != "" {
