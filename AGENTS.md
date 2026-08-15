@@ -69,12 +69,3 @@ For a full validation pass, use:
 make format
 make test
 ```
-
-If a commit is requested, verify its required attribution after committing:
-
-```bash
-git show -s --format='%(trailers:key=Co-authored-by,valueonly)' HEAD
-```
-
-The commit must contain exactly one trailer:
-`Co-authored-by: Codex <noreply@openai.com>`.
