@@ -248,6 +248,54 @@ func TestLoadPreservesFormatSettings(t *testing.T) {
 	}
 }
 
+func TestLoadBackfillsNewFieldsIntoOldConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path, err := Path()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate an old config that only has the original fields.
+	if err := os.WriteFile(path, []byte("last_opened_file: /tmp/old.yaml\nsearch_mode: keyword\ntheme: dark\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Old fields must be preserved.
+	if value.LastOpenedFile != "/tmp/old.yaml" {
+		t.Fatalf("LastOpenedFile = %q", value.LastOpenedFile)
+	}
+	if value.SearchMode != SearchModeKeyword {
+		t.Fatalf("SearchMode = %q", value.SearchMode)
+	}
+	if value.ThemeMode != ThemeModeDark {
+		t.Fatalf("ThemeMode = %q", value.ThemeMode)
+	}
+	// New fields must be backfilled from defaults.
+	if value.Indent != 2 {
+		t.Fatalf("Indent = %d, want 2", value.Indent)
+	}
+	if !value.SortKeys {
+		t.Fatalf("SortKeys = false, want true")
+	}
+	// The saved file must now contain the new fields.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{"indent: 2", "sort_keys: true", "search_mode: keyword", "theme: dark"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("saved config missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestNormalizeIndentRejectsInvalidValues(t *testing.T) {
 	if NormalizeIndent(0) != 2 {
 		t.Fatal("NormalizeIndent(0) should return 2")
